@@ -67,6 +67,11 @@ sudo systemctl daemon-reload
 sudo systemctl enable pieeg-server.service
 echo "  Service created and enabled (starts on boot)"
 
+# --- 5. Symlink so 'pieeg-server' works without activating the venv ---
+echo "[5/5] Creating pieeg-server command..."
+sudo ln -sf "$INSTALL_DIR/.venv/bin/pieeg-server" /usr/local/bin/pieeg-server
+echo "  Linked: /usr/local/bin/pieeg-server → $INSTALL_DIR/.venv/bin/pieeg-server"
+
 # --- Done ---
 echo ""
 echo "=== Setup complete! ==="
