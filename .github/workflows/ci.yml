@@ -7,6 +7,29 @@ on:
     branches: [main]
 
 jobs:
+  # ── Unit / integration tests (fast, every push) ──
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package + dev deps
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest -v
+
+  # ── Debian container smoke test (mimics Pi OS) ──
   install-and-smoke-test:
     runs-on: ubuntu-latest
     container:
@@ -46,8 +69,14 @@ jobs:
           from pieeg_server.filters import BandpassFilter
           from pieeg_server.mock import MockHardware
           from pieeg_server.hardware import PiEEGHardware
+          from pieeg_server.doctor import run_doctor
           print('All modules imported OK')
           "
+
+      - name: Run doctor
+        run: |
+          . .venv/bin/activate
+          pieeg-server doctor || true  # warnings expected in CI (no SPI/GPIO)
 
       - name: Smoke test (mock mode, 3 seconds)
         run: |

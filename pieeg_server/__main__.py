@@ -36,11 +36,17 @@ def _check_dependencies():
         sys.exit(1)
 
 
-_check_dependencies()
+def _is_doctor_command():
+    """Check if the user is running 'pieeg-server doctor' before loading deps."""
+    return len(sys.argv) >= 2 and sys.argv[1] == "doctor"
 
-from .acquisition import AcquisitionLoop
-from .server import PiEEGServer, DEFAULT_HOST, DEFAULT_PORT
-from .dashboard import DashboardServer, DEFAULT_DASHBOARD_PORT
+
+# Only check heavy dependencies if not running doctor
+if not _is_doctor_command():
+    _check_dependencies()
+    from .acquisition import AcquisitionLoop
+    from .server import PiEEGServer, DEFAULT_HOST, DEFAULT_PORT
+    from .dashboard import DashboardServer, DEFAULT_DASHBOARD_PORT
 
 
 def parse_args():
@@ -48,16 +54,30 @@ def parse_args():
         prog="pieeg-server",
         description="PiEEG-16 local streaming server",
     )
+
+    sub = p.add_subparsers(dest="command")
+
+    # --- doctor subcommand ---
+    doc = sub.add_parser(
+        "doctor",
+        help="Diagnose hardware, software, and configuration",
+    )
+    doc.add_argument(
+        "--quiet", "-q", action="store_true",
+        help="Only return exit code (0=ok, 1=warnings, 2=errors)",
+    )
+
+    # --- server options (default command) ---
     p.add_argument(
-        "--host", default=DEFAULT_HOST,
+        "--host", default="0.0.0.0",
         help="Bind address (default: 0.0.0.0 = all interfaces)",
     )
     p.add_argument(
-        "--port", type=int, default=DEFAULT_PORT,
+        "--port", type=int, default=1616,
         help="WebSocket port (default: 1616)",
     )
     p.add_argument(
-        "--dashboard-port", type=int, default=DEFAULT_DASHBOARD_PORT,
+        "--dashboard-port", type=int, default=1617,
         help="Dashboard HTTP port (default: 1617)",
     )
     p.add_argument(
@@ -93,6 +113,11 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    # --- Doctor subcommand (no heavy deps needed) ---
+    if args.command == "doctor":
+        from .doctor import run_doctor
+        sys.exit(run_doctor(quiet=args.quiet))
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
