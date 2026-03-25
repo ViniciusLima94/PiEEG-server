@@ -25,16 +25,6 @@ chmod +x setup.sh
 sudo reboot   # only needed first time, to enable SPI
 ```
 
-### Option C — pip install
-
-```bash
-pip install pieeg-server[rpi]
-pieeg-server          # start streaming
-```
-
-> With pip you get the server but **not** the systemd service or SPI auto-enable.
-> Run `pieeg-server doctor` to check that SPI is configured.
-
 ---
 
 ## Run

@@ -16,20 +16,36 @@ SAMPLE_INTERVAL = 1.0 / SAMPLE_RATE  # 4 ms
 
 
 class AcquisitionLoop:
-    """Runs the SPI read loop in a background thread, feeds an async queue."""
+    """Runs the SPI read loop in a background thread, feeds async queues."""
 
     def __init__(self, hardware, loop: asyncio.AbstractEventLoop, mock: bool = False):
         self._hw = hardware
         self._loop = loop
         self._mock = mock
-        self._queue: asyncio.Queue = asyncio.Queue(maxsize=2048)
+        self._subscribers: list[asyncio.Queue] = []
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
         self._sample_count = 0
+        # Default subscriber for backward compat (.queue property)
+        self._default_queue = self.subscribe()
+
+    def subscribe(self, maxsize: int = 2048) -> asyncio.Queue:
+        """Create and return a new queue that receives every frame."""
+        q: asyncio.Queue = asyncio.Queue(maxsize=maxsize)
+        self._subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: asyncio.Queue):
+        """Remove a subscriber queue."""
+        try:
+            self._subscribers.remove(q)
+        except ValueError:
+            pass
 
     @property
     def queue(self) -> asyncio.Queue:
-        return self._queue
+        """Backward-compatible default queue."""
+        return self._default_queue
 
     @property
     def sample_count(self) -> int:
@@ -114,15 +130,16 @@ class AcquisitionLoop:
             self._loop.call_soon_threadsafe(self._enqueue, frame)
 
     def _enqueue(self, frame: dict):
-        try:
-            self._queue.put_nowait(frame)
-        except asyncio.QueueFull:
-            # Drop oldest frame to keep up with real-time
+        for q in self._subscribers:
             try:
-                self._queue.get_nowait()
-            except asyncio.QueueEmpty:
-                pass
-            try:
-                self._queue.put_nowait(frame)
+                q.put_nowait(frame)
             except asyncio.QueueFull:
-                pass
+                # Drop oldest frame to keep up with real-time
+                try:
+                    q.get_nowait()
+                except asyncio.QueueEmpty:
+                    pass
+                try:
+                    q.put_nowait(frame)
+                except asyncio.QueueFull:
+                    pass

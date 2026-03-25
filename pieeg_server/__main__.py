@@ -38,7 +38,7 @@ def _check_dependencies():
 
 def _is_doctor_command():
     """Check if the user is running 'pieeg-server doctor' before loading deps."""
-    return len(sys.argv) >= 2 and sys.argv[1] == "doctor"
+    return len(sys.argv) >= 2 and sys.argv[1] in ("doctor", "record", "monitor")
 
 
 # Only check heavy dependencies if not running doctor
@@ -65,6 +65,49 @@ def parse_args():
     doc.add_argument(
         "--quiet", "-q", action="store_true",
         help="Only return exit code (0=ok, 1=warnings, 2=errors)",
+    )
+
+    # --- record subcommand ---
+    rec = sub.add_parser(
+        "record",
+        help="Record EEG data to CSV (without starting the WebSocket server)",
+    )
+    rec.add_argument(
+        "output", help="Output CSV file path",
+    )
+    rec.add_argument(
+        "--duration", type=float, default=None,
+        help="Recording duration in seconds (default: until Ctrl-C)",
+    )
+    rec.add_argument(
+        "--mock", action="store_true",
+        help="Use synthetic EEG data (no hardware needed)",
+    )
+    rec.add_argument(
+        "--gpio-chip", default="/dev/gpiochip4",
+        help="GPIO chip device path (default: '/dev/gpiochip4' for Pi 5)",
+    )
+    rec.add_argument(
+        "--verbose", "-v", action="store_true",
+        help="Enable debug logging",
+    )
+
+    # --- monitor subcommand ---
+    mon = sub.add_parser(
+        "monitor",
+        help="Live terminal monitor (requires 'rich')",
+    )
+    mon.add_argument(
+        "--mock", action="store_true",
+        help="Use synthetic EEG data (no hardware needed)",
+    )
+    mon.add_argument(
+        "--gpio-chip", default="/dev/gpiochip4",
+        help="GPIO chip device path (default: '/dev/gpiochip4' for Pi 5)",
+    )
+    mon.add_argument(
+        "--verbose", "-v", action="store_true",
+        help="Enable debug logging",
     )
 
     # --- server options (default command) ---
@@ -108,25 +151,23 @@ def parse_args():
         "--mock", action="store_true",
         help="Use synthetic EEG data (no hardware needed, for testing)",
     )
+    p.add_argument(
+        "--record", metavar="FILE",
+        help="Record EEG data to CSV while streaming",
+    )
+    p.add_argument(
+        "--record-duration", type=float, default=None,
+        help="Stop recording after N seconds (default: until stopped)",
+    )
+    p.add_argument(
+        "--monitor", action="store_true",
+        help="Show live terminal monitor (requires 'rich')",
+    )
     return p.parse_args()
 
 
-def main():
-    args = parse_args()
-
-    # --- Doctor subcommand (no heavy deps needed) ---
-    if args.command == "doctor":
-        from .doctor import run_doctor
-        sys.exit(run_doctor(quiet=args.quiet))
-
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
-    logger = logging.getLogger("pieeg")
-
-    # --- Hardware ---
+def _make_hardware(args, logger):
+    """Create and open the hardware backend (real or mock)."""
     if args.mock:
         from .mock import MockHardware
         logger.info("Starting in MOCK mode (synthetic EEG data)")
@@ -138,6 +179,93 @@ def main():
     hw.open()
     if not args.mock:
         logger.info("Hardware initialized - ADCs configured, LEDs should be ON")
+    return hw
+
+
+def main():
+    args = parse_args()
+
+    # --- Doctor subcommand (no heavy deps needed) ---
+    if args.command == "doctor":
+        from .doctor import run_doctor
+        sys.exit(run_doctor(quiet=args.quiet))
+
+    # --- Record subcommand (standalone) ---
+    if args.command == "record":
+        _check_dependencies()
+        from .acquisition import AcquisitionLoop
+        from .recorder import Recorder
+
+        logging.basicConfig(
+            level=logging.DEBUG if args.verbose else logging.INFO,
+            format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+            datefmt="%H:%M:%S",
+        )
+        logger = logging.getLogger("pieeg")
+
+        hw = _make_hardware(args, logger)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        acq = AcquisitionLoop(hw, loop, mock=args.mock)
+        acq.start()
+        recorder = Recorder(acq, output=args.output, duration=args.duration)
+
+        def _rec_shutdown(*_):
+            logger.info("Stopping recording...")
+            acq.stop()
+            hw.close()
+            loop.stop()
+            sys.exit(0)
+
+        signal.signal(signal.SIGINT, _rec_shutdown)
+        signal.signal(signal.SIGTERM, _rec_shutdown)
+        loop.run_until_complete(recorder.run())
+        acq.stop()
+        hw.close()
+        return
+
+    # --- Monitor subcommand (standalone) ---
+    if args.command == "monitor":
+        _check_dependencies()
+        from .acquisition import AcquisitionLoop
+        from .monitor import TerminalMonitor
+
+        logging.basicConfig(
+            level=logging.DEBUG if args.verbose else logging.WARNING,
+            format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+            datefmt="%H:%M:%S",
+        )
+        logger = logging.getLogger("pieeg")
+
+        hw = _make_hardware(args, logger)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        acq = AcquisitionLoop(hw, loop, mock=args.mock)
+        acq.start()
+        monitor = TerminalMonitor(acq)
+
+        def _mon_shutdown(*_):
+            acq.stop()
+            hw.close()
+            loop.stop()
+            sys.exit(0)
+
+        signal.signal(signal.SIGINT, _mon_shutdown)
+        signal.signal(signal.SIGTERM, _mon_shutdown)
+        loop.run_until_complete(monitor.run())
+        acq.stop()
+        hw.close()
+        return
+
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    logger = logging.getLogger("pieeg")
+
+    # --- Hardware ---
+    hw = _make_hardware(args, logger)
 
     # --- Acquisition ---
     loop = asyncio.new_event_loop()
@@ -159,9 +287,30 @@ def main():
         dashboard = DashboardServer(host=args.host, port=args.dashboard_port)
         dashboard.start()
 
+    # --- Recorder (optional, alongside server) ---
+    recorder = None
+    recorder_task = None
+    if args.record:
+        from .recorder import Recorder
+        recorder = Recorder(acq, output=args.record, duration=args.record_duration)
+        logger.info("Recording to %s%s",
+                    args.record,
+                    f" for {args.record_duration}s" if args.record_duration else "")
+
+    # --- Terminal monitor (optional, alongside server) ---
+    monitor = None
+    monitor_task = None
+    if args.monitor:
+        from .monitor import TerminalMonitor
+        monitor = TerminalMonitor(acq)
+
     # --- Graceful shutdown ---
     def shutdown(*_):
         logger.info("Shutting down...")
+        if monitor_task:
+            monitor_task.cancel()
+        if recorder_task:
+            recorder_task.cancel()
         if dashboard:
             dashboard.stop()
         acq.stop()
@@ -186,7 +335,24 @@ def main():
     if not args.no_dashboard:
         logger.info("  Dashboard: http://%s:%d", local_ip, args.dashboard_port)
         logger.info("  Dashboard: http://%s.local:%d  (mDNS)", hostname, args.dashboard_port)
-    loop.run_until_complete(server.run())
+    if args.record:
+        logger.info("  Recording: %s", args.record)
+    if args.monitor:
+        logger.info("  Monitor:   terminal (live)")
+
+    async def _run_all():
+        tasks = [asyncio.create_task(server.run())]
+        if recorder:
+            nonlocal recorder_task
+            recorder_task = asyncio.create_task(recorder.run())
+            tasks.append(recorder_task)
+        if monitor:
+            nonlocal monitor_task
+            monitor_task = asyncio.create_task(monitor.run())
+            tasks.append(monitor_task)
+        await asyncio.gather(*tasks)
+
+    loop.run_until_complete(_run_all())
 
 
 if __name__ == "__main__":

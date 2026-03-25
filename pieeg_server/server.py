@@ -38,6 +38,7 @@ class PiEEGServer:
         self._port = port
         self._clients: set[websockets.WebSocketServerProtocol] = set()
         self._filter: MultichannelFilter | None = None
+        self._queue = acquisition.subscribe()
 
     def enable_filter(self, lowcut: float = 1.0, highcut: float = 40.0):
         self._filter = MultichannelFilter(lowcut=lowcut, highcut=highcut)
@@ -103,7 +104,7 @@ class PiEEGServer:
 
     async def _broadcast_loop(self):
         """Continuously read frames from the acquisition queue and broadcast."""
-        queue = self._acq.queue
+        queue = self._queue
 
         while True:
             frame = await queue.get()

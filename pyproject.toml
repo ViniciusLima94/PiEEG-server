@@ -35,6 +35,9 @@ dependencies = [
 rpi = [
     "spidev>=3.6",
 ]
+tui = [
+    "rich>=13.0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
