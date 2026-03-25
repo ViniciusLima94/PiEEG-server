@@ -12,13 +12,19 @@ license = {text = "MIT"}
 authors = [
     {name = "PiEEG Community"},
 ]
-keywords = ["eeg", "bci", "raspberry-pi", "pieeg", "neuroscience", "websocket"]
+keywords = ["eeg", "bci", "raspberry-pi", "pieeg", "neuroscience", "websocket",
+            "brain-computer-interface", "ads1299", "spi"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Medical Science Apps.",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: POSIX :: Linux",
+    "License :: OSI Approved :: MIT License",
+    "Environment :: Console",
+    "Framework :: AsyncIO",
 ]
 dependencies = [
     "websockets>=12.0",
@@ -28,12 +34,23 @@ dependencies = [
 [project.optional-dependencies]
 rpi = [
     "spidev>=3.6",
-    "gpiod>=1.5.4",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
 ]
 
 [project.scripts]
 pieeg-server = "pieeg_server.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/pieeg-club/PiEEG-16"
+Homepage = "https://github.com/yelabb/PiEEG-16-server"
 Documentation = "https://pieeg.com/docs/docs/pieeg-16/"
+Repository = "https://github.com/yelabb/PiEEG-16-server"
+Issues = "https://github.com/yelabb/PiEEG-16-server/issues"
+
+[tool.setuptools.packages.find]
+include = ["pieeg_server*"]
+
+[tool.setuptools.package-data]
+pieeg_server = ["static/*"]
