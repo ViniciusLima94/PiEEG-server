@@ -151,11 +151,45 @@ def _make_handler(static_dir: Path, auth: AuthManager):
             if not self._is_authenticated():
                 return self._send_login()
 
+            # Download recorded CSV files
+            if self.path.startswith("/recordings/"):
+                return self._serve_recording()
+
             # SPA fallback: if the path doesn't match a file, serve index.html
             file_path = static_dir / self.path.lstrip("/")
             if not file_path.is_file() and not self.path.startswith("/assets"):
                 self.path = "/index.html"
             super().do_GET()
+
+        def _serve_recording(self):
+            """Serve a recorded CSV file from the recordings directory."""
+            filename = self.path.split("/")[-1]
+            # Only allow simple filenames (no path traversal)
+            if not filename or "/" in filename or "\\" in filename or ".." in filename:
+                self.send_error(400)
+                return
+            recordings_dir = Path.cwd() / "recordings"
+            file_path = (recordings_dir / filename).resolve()
+            # Ensure resolved path is inside recordings_dir
+            if not str(file_path).startswith(str(recordings_dir.resolve())):
+                self.send_error(403)
+                return
+            if not file_path.is_file():
+                self.send_error(404)
+                return
+            try:
+                data = file_path.read_bytes()
+            except OSError:
+                self.send_error(500)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/csv")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Access-Control-Allow-Origin", self.headers.get("Origin", "*"))
+            self.send_header("Access-Control-Allow-Credentials", "true")
+            self.end_headers()
+            self.wfile.write(data)
 
         def do_POST(self):
             if self.path != "/auth":

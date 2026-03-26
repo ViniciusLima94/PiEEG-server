@@ -14,3 +14,4 @@ logs
 
 # Dashboard (React/Vite)
 dashboard/node_modules/
+recordings/*.csv

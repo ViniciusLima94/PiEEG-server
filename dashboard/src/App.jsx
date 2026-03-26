@@ -48,6 +48,16 @@ export default function App() {
     });
   }
 
+  function toggleRecord() {
+    eeg.sendCommand({ cmd: eeg.recording ? "stop_record" : "start_record" });
+  }
+
+  function formatElapsed(sec) {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+
   function updateFilter(low, high) {
     if (!filterEnabled) return;
     eeg.sendCommand({
@@ -87,6 +97,15 @@ export default function App() {
           onClick={togglePause}
         >
           {paused ? "▶ Resume" : "⏸ Pause"}
+        </button>
+        <button
+          className={`btn btn-record${eeg.recording ? " recording" : ""}`}
+          onClick={toggleRecord}
+        >
+          <span className="rec-dot" />
+          {eeg.recording
+            ? `⏹ Stop ${formatElapsed(eeg.recordElapsed)}`
+            : "⏺ Record"}
         </button>
         <button
           className={`btn${filterEnabled ? " active" : ""}`}
@@ -169,6 +188,48 @@ export default function App() {
         </div>
         {showFFT && <SpectralPanel eeg={eeg} />}
       </div>
+
+      {/* Recording result modal */}
+      {eeg.recordResult && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <h2>Recording Complete</h2>
+            <div className="modal-details">
+              <div className="modal-row">
+                <span className="modal-label">File</span>
+                <span className="modal-value">{eeg.recordResult.filename}</span>
+              </div>
+              <div className="modal-row">
+                <span className="modal-label">Duration</span>
+                <span className="modal-value">{formatElapsed(eeg.recordResult.duration)}</span>
+              </div>
+              <div className="modal-row">
+                <span className="modal-label">Frames</span>
+                <span className="modal-value">{eeg.recordResult.frames.toLocaleString()}</span>
+              </div>
+              <div className="modal-row">
+                <span className="modal-label">Saved to</span>
+                <span className="modal-value modal-path">{eeg.recordResult.path}</span>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <a
+                className="btn modal-btn-download"
+                href={eeg.recordResult.downloadUrl}
+                download
+              >
+                Download CSV
+              </a>
+              <button
+                className="btn modal-btn-dismiss"
+                onClick={eeg.dismissRecordResult}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="footer">

@@ -13,6 +13,11 @@ export function useEEG(timeWindowSec = 4) {
   const [connected, setConnected] = useState(false);
   const [sampleCount, setSampleCount] = useState(0);
   const [hz, setHz] = useState(0);
+  const [recording, setRecording] = useState(false);
+  const [recordElapsed, setRecordElapsed] = useState(0);
+  const [recordResult, setRecordResult] = useState(null);
+  const recordStartRef = useRef(null);
+  const recordTimerRef = useRef(null);
   const wsRef = useRef(null);
   const buffersRef = useRef(null);
   const writeIndexRef = useRef(0);
@@ -33,6 +38,22 @@ export function useEEG(timeWindowSec = 4) {
     writeIndexRef.current = 0;
     samplesInBufRef.current = 0;
   }
+
+  // Client-side recording timer driven by `recording` state
+  useEffect(() => {
+    if (recording) {
+      recordStartRef.current = Date.now();
+      setRecordElapsed(0);
+      clearInterval(recordTimerRef.current);
+      recordTimerRef.current = setInterval(() => {
+        setRecordElapsed(Math.floor((Date.now() - recordStartRef.current) / 1000));
+      }, 500);
+    } else {
+      clearInterval(recordTimerRef.current);
+      recordStartRef.current = null;
+    }
+    return () => clearInterval(recordTimerRef.current);
+  }, [recording]);
 
   const setPaused = useCallback((v) => {
     pausedRef.current = v;
@@ -63,6 +84,23 @@ export function useEEG(timeWindowSec = 4) {
 
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
+
+        // Handle record_status updates
+        if (msg.record_status) {
+          const rs = msg.record_status;
+          setRecording(rs.recording);
+          if (rs.stopped) {
+            const dashPort = location.port || "1617";
+            setRecordResult({
+              filename: rs.stopped.filename,
+              frames: rs.stopped.frames,
+              duration: rs.stopped.duration,
+              path: rs.stopped.path,
+              downloadUrl: `${location.protocol}//${location.hostname}:${dashPort}/recordings/${rs.stopped.filename}`,
+            });
+          }
+        }
+
         if (msg.status) return;
         if (pausedRef.current) return;
 
@@ -111,6 +149,10 @@ export function useEEG(timeWindowSec = 4) {
     connected,
     sampleCount,
     hz,
+    recording,
+    recordElapsed,
+    recordResult,
+    dismissRecordResult: () => setRecordResult(null),
     buffers: buffersRef,
     writeIndex: writeIndexRef,
     samplesInBuffer: samplesInBufRef,
