@@ -47,15 +47,47 @@ That's it. LEDs turn on, data streams to `ws://raspberrypi.local:1616`.
 
 Open **http://raspberrypi.local:1617** in any browser on your network for the real-time dashboard.
 
+**Ports:**
+- **`:1616`** — WebSocket data stream (PiEEG-**16** → **1616**)
+- **`:1617`** — Web dashboard (next door)
+
+### Authentication
+
+When the server starts, a **6-digit access code** is printed in your terminal:
+
+```
+╔══════════════════════════════════════╗
+║        DASHBOARD ACCESS CODE         ║
+║                                      ║
+║       ██  ██  ██  ██  ██  ██        ║
+║                                      ║
+║         Code: 847291                 ║
+╚══════════════════════════════════════╝
+```
+
+The first time you open the dashboard in your browser, you'll be asked for this code. After that, your session is remembered for 24 hours.
+
+The code changes every time the server restarts.
+
+### Dashboard
+
+The dashboard is served at `http://raspberrypi.local:1617` and requires the access code.
+Built with React + Vite, it provides a modern UI with per-channel canvases.
+
+**Features:**
+- 16-channel real-time EEG waveforms (4×4 grid)
+- Pause / resume, bandpass filter controls, adjustable time window & scale
+- **Spectral Analysis (FFT)** — toggle the **FFT** button to open the spectral panel:
+  - Pure-JS Cooley-Tukey radix-2 FFT (256-point, Hanning window)
+  - Power Spectral Density plot (0–60 Hz, log/linear scale)
+  - EEG frequency band power bars: Delta (δ 0.5–4 Hz), Theta (θ 4–8 Hz), Alpha (α 8–13 Hz), Beta (β 13–30 Hz), Gamma (γ 30–100 Hz)
+  - Per-channel or all-channel average analysis
+  - Dominant frequency detection
+
 <img height="400" alt="image" src="https://github.com/user-attachments/assets/3f33bfd4-c721-4b94-a672-2a0b744d127b" />
 
 ### Terminal
 <img width="422" height="475" alt="image" src="https://github.com/user-attachments/assets/7d58af68-85c4-41d3-b1ab-89b23e99faff" />
-
-
-**Ports:**
-- **`:1616`** — WebSocket data stream (PiEEG-**16** → **1616**)
-- **`:1617`** — Web dashboard (next door)
 
 ## Record data
 
@@ -98,6 +130,14 @@ pip install -e .
 ```
 
 If that still fails, run your terminal **as Administrator** (right-click → Run as administrator).
+
+### Windows: using the `.cmd` wrapper
+
+If the system-wide `pieeg-server` command picks up the wrong Python install, use the included wrapper that always uses the project's venv:
+
+```powershell
+.\pieeg-server.cmd --mock
+```
 
 > On Windows you can only use mock mode (`pieeg-server --mock`) since SPI/GPIO hardware is not available.
 
@@ -227,6 +267,88 @@ We only use two GPIO pins (chip-select output + data-ready input), so the ~20 li
 - Only works on **Linux** (blocks development/testing on macOS/Windows)
 
 The chardev v1 ioctl ABI has been stable since Linux 4.8 (2016) and is guaranteed not to break by the kernel's userspace compatibility policy.
+
+## Development
+
+### Setup
+
+```bash
+git clone https://github.com/yelabb/PiEEG-16-server.git
+cd PiEEG-16-server
+python -m venv .venv && source .venv/bin/activate  # or .venv\Scripts\Activate.ps1 on Windows
+pip install -e ".[dev]"
+```
+
+### Dashboard development (React)
+
+The React dashboard source lives in `dashboard/`. During development, use the Vite dev server for hot reload:
+
+```bash
+# Terminal 1: start the Python server (mock data, no hardware needed)
+pieeg-server --mock
+
+# Terminal 2: start the Vite dev server
+cd dashboard
+npm install
+npm run dev          # → http://localhost:3000
+```
+
+The Vite dev server proxies `/auth` and `/ws` to the Python server, so authentication and data streaming work the same as production.
+
+### Building the dashboard
+
+The React dashboard is **pre-built and committed to git** in `pieeg_server/static/dashboard/` so that `pip install` users get it without needing Node.js.
+
+If you change files in `dashboard/src/`, rebuild:
+
+```bash
+cd dashboard && npm run build
+```
+
+#### Auto-build on commit (pre-commit hook)
+
+A git hook auto-rebuilds the dashboard whenever you commit changes to `dashboard/src/`. Install it once:
+
+```bash
+cp scripts/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit          # Linux/macOS
+```
+
+After that, `git commit` will automatically:
+1. Detect staged changes in `dashboard/src/`
+2. Run `npm run build`
+3. Stage the fresh build output
+
+No more forgetting to rebuild before pushing.
+
+### Tests
+
+```bash
+pytest                    # run all tests
+pytest -v                 # verbose output
+```
+
+### Publishing to PyPI
+
+#### Release build
+
+```bash
+./scripts/build_release.sh            # React build → Python wheel → dist/
+./scripts/build_release.sh --upload   # also uploads to PyPI
+```
+
+Requires Node.js >= 18 and Python >= 3.11 on your **dev machine** (not on the Pi).
+
+#### Release workflow
+
+1. Merge your feature branch into `main`
+2. Bump `version` in both `pyproject.toml` and `pieeg_server/__init__.py`
+3. Commit: `git commit -am "release v0.2.0"`
+4. Tag: `git tag v0.2.0`
+5. Release: `./scripts/build_release.sh --upload`
+6. Push: `git push origin main --tags`
+
+> **Pre-releases:** Use a version like `0.2.0a1` or `0.2.0.dev1` to publish from a non-main branch.
 
 ## Acknowledgments
 

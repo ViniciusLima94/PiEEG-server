@@ -16,11 +16,15 @@ Protocol (JSON over WebSocket):
 import asyncio
 import json
 import logging
+import time
+from datetime import datetime
+from pathlib import Path
 
 import websockets
 
 from .acquisition import AcquisitionLoop
 from .filters import MultichannelFilter
+from .recorder import Recorder
 
 logger = logging.getLogger("pieeg.server")
 
@@ -39,6 +43,10 @@ class PiEEGServer:
         self._clients: set[websockets.WebSocketServerProtocol] = set()
         self._filter: MultichannelFilter | None = None
         self._queue = acquisition.subscribe()
+        self._recorder: Recorder | None = None
+        self._recorder_task: asyncio.Task | None = None
+        self._record_start_time: float | None = None
+        self._recordings_dir = Path("recordings")
 
     def enable_filter(self, lowcut: float = 1.0, highcut: float = 40.0):
         self._filter = MultichannelFilter(lowcut=lowcut, highcut=highcut)
@@ -64,13 +72,14 @@ class PiEEGServer:
         logger.info("Client connected: %s", peer)
 
         # Send welcome message
-        welcome = json.dumps({
+        welcome = {
             "status": "connected",
             "sample_rate": 250,
             "channels": 16,
             "filter": self._filter is not None,
-        })
-        await ws.send(welcome)
+        }
+        welcome.update(self._get_record_status())
+        await ws.send(json.dumps(welcome))
 
         try:
             async for message in ws:
@@ -101,6 +110,72 @@ class PiEEGServer:
             else:
                 self.disable_filter()
                 logger.info("Filter disabled")
+        elif cmd == "start_record":
+            await self._start_recording()
+        elif cmd == "stop_record":
+            await self._stop_recording()
+
+    async def _start_recording(self):
+        """Start recording EEG data to a timestamped CSV file."""
+        if self._recorder_task and not self._recorder_task.done():
+            logger.warning("Recording already in progress")
+            return
+
+        filename = datetime.now().strftime("pieeg_%Y%m%d_%H%M%S.csv")
+        output = self._recordings_dir / filename
+        self._recorder = Recorder(self._acq, output=output)
+        self._record_start_time = time.time()
+        self._recorder_task = asyncio.create_task(self._recorder.run())
+        logger.info("Recording started: %s", output)
+        await self._broadcast_record_status()
+
+    async def _stop_recording(self):
+        """Stop the current recording."""
+        if not self._recorder_task or self._recorder_task.done():
+            logger.warning("No recording in progress")
+            return
+
+        self._recorder_task.cancel()
+        try:
+            await self._recorder_task
+        except asyncio.CancelledError:
+            pass
+        frames = self._recorder.frames_written
+        filename = self._recorder._output.name
+        duration = round(time.time() - self._record_start_time, 1) if self._record_start_time else 0
+        path = str(self._recorder._output.resolve())
+        logger.info("Recording stopped: %d frames → %s", frames, filename)
+        self._recorder = None
+        self._recorder_task = None
+        self._record_start_time = None
+        await self._broadcast_record_status(stop_info={
+            "filename": filename,
+            "frames": frames,
+            "duration": duration,
+            "path": path,
+        })
+
+    async def _broadcast_record_status(self, stop_info: dict | None = None):
+        """Send recording status to all connected clients."""
+        status = self._get_record_status(stop_info=stop_info)
+        payload = json.dumps(status)
+        stale = set()
+        for ws in self._clients:
+            try:
+                await ws.send(payload)
+            except websockets.ConnectionClosed:
+                stale.add(ws)
+        self._clients -= stale
+
+    def _get_record_status(self, stop_info: dict | None = None) -> dict:
+        """Build a record_status message."""
+        recording = self._recorder_task is not None and not self._recorder_task.done()
+        status: dict = {
+            "recording": recording,
+        }
+        if stop_info:
+            status["stopped"] = stop_info
+        return {"record_status": status}
 
     async def _broadcast_loop(self):
         """Continuously read frames from the acquisition queue and broadcast."""
