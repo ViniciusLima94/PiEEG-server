@@ -228,6 +228,36 @@ We only use two GPIO pins (chip-select output + data-ready input), so the ~20 li
 
 The chardev v1 ioctl ABI has been stable since Linux 4.8 (2016) and is guaranteed not to break by the kernel's userspace compatibility policy.
 
+## Publishing to PyPI
+
+### Build & upload
+
+```bash
+pip install build twine
+
+# Build sdist + wheel
+python -m build
+
+# Upload to TestPyPI first (optional, recommended)
+twine upload --repository testpypi dist/*
+
+# Upload to PyPI
+twine upload dist/*
+```
+
+You need a PyPI API token — create one at https://pypi.org/manage/account/token/.
+
+### Release workflow
+
+1. Merge your feature branch into `main`
+2. Bump `version` in both `pyproject.toml` and `pieeg_server/__init__.py`
+3. Commit: `git commit -am "release v0.2.0"`
+4. Tag: `git tag v0.2.0`
+5. Build & upload: `python -m build && twine upload dist/*`
+6. Push: `git push origin main --tags`
+
+> **Pre-releases:** To publish from a non-main branch, use a pre-release version like `0.2.0a1` or `0.2.0.dev1`. No special branch is needed — PyPI handles versioning natively.
+
 ## Acknowledgments
 
 This project was built with guidance from [Ildar Rakhmatulin, PhD](https://scholar.google.com/citations?user=L8q-KSoAAAAJ&hl=en), creator of the PiEEG platform.
