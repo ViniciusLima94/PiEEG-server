@@ -12,6 +12,27 @@ import signal
 import socket
 import sys
 
+from . import __version__
+
+
+def _check_update():
+    """Check PyPI for a newer version and print a notice if available."""
+    try:
+        from urllib.request import urlopen
+        import json
+        url = "https://pypi.org/pypi/pieeg-server/json"
+        with urlopen(url, timeout=3) as resp:
+            latest = json.loads(resp.read())["info"]["version"]
+        if latest != __version__:
+            print(
+                f"\n  ╔══════════════════════════════════════════════════╗"
+                f"\n  ║  Update available: {__version__} → {latest:<26s}║"
+                f"\n  ║  Run: pip install --upgrade pieeg-server        ║"
+                f"\n  ╚══════════════════════════════════════════════════╝\n"
+            )
+    except Exception:
+        pass  # no network / not published yet — silently skip
+
 
 def _check_dependencies():
     missing = []
@@ -185,6 +206,7 @@ def _make_hardware(args, logger):
 
 def main():
     args = parse_args()
+    _check_update()
 
     # --- Doctor subcommand (no heavy deps needed) ---
     if args.command == "doctor":
