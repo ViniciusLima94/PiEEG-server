@@ -22,7 +22,7 @@ const TIME_OPTIONS = [
 
 export default function App() {
   const [paused, setPaused] = useState(false);
-  const [showFFT, setShowFFT] = useState(false);
+  const [showFFT, setShowFFT] = useState(true);
   const [filterEnabled, setFilterEnabled] = useState(false);
   const [lowcut, setLowcut] = useState(1);
   const [highcut, setHighcut] = useState(40);
