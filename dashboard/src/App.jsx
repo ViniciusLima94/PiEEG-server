@@ -3,6 +3,7 @@ import { useEEG } from "./hooks/useEEG";
 import AuthGate from "./components/AuthGate";
 import ChannelCanvas from "./components/ChannelCanvas";
 import SpectralPanel from "./components/SpectralPanel";
+import PerformanceMonitor from "./components/PerformanceMonitor";
 
 const NUM_CHANNELS = 16;
 
@@ -281,6 +282,9 @@ export default function App() {
         </div>
       )}
 
+      {/* Performance Monitor (press P to toggle) */}
+      <PerformanceMonitor />
+
       {/* Footer */}
       <footer className="footer">
         <span>PiEEG-16-server · React Dashboard</span>
@@ -288,7 +292,8 @@ export default function App() {
           <kbd>Space</kbd> Pause&ensp;
           <kbd>R</kbd> Record&ensp;
           <kbd>F</kbd> FFT&ensp;
-          <kbd>Esc</kbd> Close
+          <kbd>Esc</kbd> Close&ensp;
+          <kbd>P</kbd> Perf
         </span>
         <span>Battery powered only · Not a medical device</span>
       </footer>
