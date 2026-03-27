@@ -26,8 +26,10 @@ export function useEEG(timeWindowSec = 4) {
   const pausedRef = useRef(false);
   const sampleCountRef = useRef(0);
   const lastUIUpdate = useRef(0);
+  const bufferSizeRef = useRef(0);
 
   const bufferSize = SAMPLE_RATE * timeWindowSec;
+  bufferSizeRef.current = bufferSize;
 
   // Allocate ring buffers
   if (!buffersRef.current || buffersRef.current[0].length !== bufferSize) {
@@ -127,12 +129,13 @@ export function useEEG(timeWindowSec = 4) {
 
         // Write into ring buffers (no React state — refs only)
         const bufs = buffersRef.current;
+        const bs = bufferSizeRef.current;
         const wi = writeIndexRef.current;
         for (let ch = 0; ch < NUM_CHANNELS; ch++) {
           bufs[ch][wi] = channels[ch];
         }
-        writeIndexRef.current = (wi + 1) % bufferSize;
-        if (samplesInBufRef.current < bufferSize) samplesInBufRef.current++;
+        writeIndexRef.current = (wi + 1) % bs;
+        if (samplesInBufRef.current < bs) samplesInBufRef.current++;
 
         sampleCountRef.current++;
 
@@ -161,7 +164,7 @@ export function useEEG(timeWindowSec = 4) {
       const ws = wsRef.current;
       if (ws) ws.close();
     };
-  }, [bufferSize]);
+  }, []);
 
   return {
     connected,
