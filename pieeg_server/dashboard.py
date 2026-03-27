@@ -147,6 +147,9 @@ def _make_handler(static_dir: Path, auth: AuthManager):
         def do_GET(self):
             # Auth status check (JSON API for React app)
             if self.path == "/auth/status":
+                # When auth is disabled, always report as authenticated
+                if auth is None:
+                    return self._send_json({"authenticated": True})
                 return self._send_json({"authenticated": self._is_authenticated()})
 
             # Issue a short-lived, single-use WebSocket token
@@ -163,7 +166,8 @@ def _make_handler(static_dir: Path, auth: AuthManager):
             if self.path.startswith("/assets/"):
                 return super().do_GET()
 
-            if not self._is_authenticated():
+            # When auth is disabled, never show login page
+            if auth is not None and not self._is_authenticated():
                 return self._send_login()
 
             # Download recorded CSV files
