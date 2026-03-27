@@ -2,6 +2,12 @@
 
 A lightweight server for the [PiEEG-16](https://github.com/pieeg-club/PiEEG-16) shield that initializes the hardware, reads 16 channels at 250 Hz, streams live data over WebSocket, and serves a real-time dashboard — all on your local network.
 
+<img width="550" alt="image" src="https://github.com/user-attachments/assets/6e88f47c-f17e-47f8-a088-771f1a064d43" />
+
+<img width="550" alt="image" src="https://github.com/user-attachments/assets/e9255668-05dd-4738-80b5-7c2a18411f65" />
+
+<img width="550" alt="image" src="https://github.com/user-attachments/assets/1dca8e35-d645-46a5-b957-245b65f5dd82" />
+
 ## Install
 
 > Pick **one** method. They all get you to the same place: `pieeg-server` ready to run.
