@@ -309,7 +309,7 @@ def main():
     logger.info("Acquisition started (250 Hz, 16 channels%s)", " - MOCK" if args.mock else "")
 
     # --- Server ---
-    server = PiEEGServer(acq, host=args.host, port=args.port)
+    server = PiEEGServer(acq, host=args.host, port=args.port, auth=auth)
     if args.filter:
         server.enable_filter(args.lowcut, args.highcut)
         logger.info("Server-side filter: %.1f-%.1f Hz", args.lowcut, args.highcut)
