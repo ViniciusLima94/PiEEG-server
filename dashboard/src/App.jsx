@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useEEG } from "./hooks/useEEG";
 import AuthGate from "./components/AuthGate";
 import ChannelCanvas from "./components/ChannelCanvas";
+import ChannelDetailPanel from "./components/ChannelDetailPanel";
 import SpectralPanel from "./components/SpectralPanel";
 import PerformanceMonitor from "./components/PerformanceMonitor";
 import SessionList from "./components/SessionList";
@@ -326,18 +327,12 @@ export default function App() {
       {/* Main area */}
       <div className={`main-area${showFFT ? " with-fft" : ""}`}>
         {expandedCh !== null && activeChannels.has(expandedCh) && (
-          <div className="expanded-overlay" onClick={() => setExpandedCh(null)}>
-            <div className="expanded-channel" onClick={(e) => e.stopPropagation()}>
-              <ChannelCanvas
-                chIdx={expandedCh}
-                eegData={eeg.data}
-                yRange={yScale}
-                expanded
-                active
-                onToggleExpand={() => setExpandedCh(null)}
-              />
-            </div>
-          </div>
+          <ChannelDetailPanel
+            chIdx={expandedCh}
+            eegData={eeg.data}
+            yRange={yScale}
+            onClose={() => setExpandedCh(null)}
+          />
         )}
         <div className="grid">
           {Array.from({ length: NUM_CHANNELS }, (_, i) => (
