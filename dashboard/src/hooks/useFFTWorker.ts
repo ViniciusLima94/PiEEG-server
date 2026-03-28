@@ -38,6 +38,7 @@ export function useFFTWorker(fallbackFFTEngine: FftEngine) {
       };
 
       workerRef.current = worker;
+      worker.postMessage({ type: "init" });
     } catch (e) {
       console.warn("Could not create FFT worker:", e);
     }

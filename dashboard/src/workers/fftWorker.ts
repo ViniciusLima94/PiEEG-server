@@ -44,5 +44,3 @@ ctx.onmessage = (event: MessageEvent<WorkerInMessage>) => {
     } satisfies WorkerOutMessage);
   }
 };
-
-ctx.postMessage({ type: "ready" } satisfies WorkerOutMessage);
