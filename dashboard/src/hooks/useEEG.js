@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 
 const NUM_CHANNELS = 16;
 const SAMPLE_RATE = 250;
@@ -7,7 +7,10 @@ const UI_UPDATE_MS = 500; // Throttle React state updates
 /**
  * Hook that connects to the PiEEG-16 WebSocket and maintains
  * per-channel ring buffers for the last `timeWindowSec` seconds.
- * Canvas reads refs directly — React only re-renders for UI stats.
+ *
+ * Returns two objects (PhantomLoop selector pattern):
+ *  - `data`: stable ref-based object for canvas components (never triggers re-render)
+ *  - state fields: reactive values for UI (connected, hz, sampleCount, etc.)
  */
 export function useEEG(timeWindowSec = 4) {
   const [connected, setConnected] = useState(false);
@@ -171,18 +174,35 @@ export function useEEG(timeWindowSec = 4) {
     };
   }, []);
 
+  const dismissRecordResult = useCallback(() => setRecordResult(null), []);
+
+  // Stable data object for canvas components — refs never change identity,
+  // so this object stays reference-equal across renders (PhantomLoop selector pattern).
+  // bufferSize is updated via the ref on the object.
+  const data = useMemo(() => {
+    const d = {
+      buffers: buffersRef,
+      writeIndex: writeIndexRef,
+      samplesInBuffer: samplesInBufRef,
+      bufferSize,
+    };
+    return d;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // bufferSize changes are synced via the mutable ref below:
+  data.bufferSize = bufferSize;
+
   return {
+    // Reactive state (triggers App re-render for header/controls UI)
     connected,
     sampleCount,
     hz,
     recording,
     recordElapsed,
     recordResult,
-    dismissRecordResult: () => setRecordResult(null),
-    buffers: buffersRef,
-    writeIndex: writeIndexRef,
-    samplesInBuffer: samplesInBufRef,
-    bufferSize,
+    // Stable ref-based data for canvas components (never changes reference)
+    data,
+    // Stable callbacks
+    dismissRecordResult,
     setPaused,
     sendCommand,
   };

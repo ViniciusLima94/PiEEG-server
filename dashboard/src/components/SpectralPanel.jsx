@@ -114,7 +114,7 @@ function drawSpectrum(ctx, w, h, psd, freqs, maxHz, logScale, selectedBand) {
 
 // ── component ───────────────────────────────────────────────────────────
 
-const SpectralPanel = memo(function SpectralPanel({ eeg }) {
+const SpectralPanel = memo(function SpectralPanel({ eegData }) {
   const canvasRef = useRef(null);
   const rafRef = useRef(0);
   const frameRef = useRef(0);
@@ -181,16 +181,16 @@ const SpectralPanel = memo(function SpectralPanel({ eeg }) {
 
       // compute FFT
       if (!paused && frameRef.current % FFT_EVERY_FRAMES === 0) {
-        const bufs = eeg.buffers.current;
-        const wi = eeg.writeIndex.current;
-        const count = eeg.samplesInBuffer.current;
+        const bufs = eegData.buffers.current;
+        const wi = eegData.writeIndex.current;
+        const count = eegData.samplesInBuffer.current;
 
         if (bufs && count >= FFT_SIZE) {
           let result;
           if (channel === -1) {
             // average all channels — reuse avgBufRef
             const tmp = avgBufRef.current;
-            const bufLen = eeg.bufferSize;
+            const bufLen = eegData.bufferSize;
             const start = (wi - FFT_SIZE + bufLen) % bufLen;
             for (let i = 0; i < FFT_SIZE; i++) {
               let sum = 0;
@@ -274,7 +274,7 @@ const SpectralPanel = memo(function SpectralPanel({ eeg }) {
       cancelAnimationFrame(rafRef.current);
       observer.disconnect();
     };
-  }, [eeg, channel, logScale, paused, selectedBand, fft]);
+  }, [eegData, channel, logScale, paused, selectedBand, fft]);
 
   // ── derived values ────────────────────────────────────────────────
   const maxBandPow = Math.max(

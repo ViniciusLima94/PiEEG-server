@@ -21,24 +21,24 @@ const GRID_FRAME_INTERVAL = 2; // draw every 2nd RAF tick
 function drawChannel(ctx, w, h, buf, count, writeIndex, bufferSize, yRange, color, quality) {
   ctx.clearRect(0, 0, w, h);
 
-  // Horizontal grid lines
-  ctx.strokeStyle = GRID_COLOR;
-  ctx.lineWidth = 0.5;
+  // Horizontal grid lines — batched into a single path
+  const mid = h / 2;
   const step = h / 4;
+  ctx.beginPath();
   for (let y = step; y < h; y += step) {
-    ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(w, y);
-    ctx.stroke();
   }
+  ctx.strokeStyle = GRID_COLOR;
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
 
   // Zero line
-  ctx.strokeStyle = ZERO_LINE_COLOR;
-  ctx.lineWidth = 1;
-  const mid = h / 2;
   ctx.beginPath();
   ctx.moveTo(0, mid);
   ctx.lineTo(w, mid);
+  ctx.strokeStyle = ZERO_LINE_COLOR;
+  ctx.lineWidth = 1;
   ctx.stroke();
 
   if (count < 2) return;
@@ -93,7 +93,7 @@ function drawChannel(ctx, w, h, buf, count, writeIndex, bufferSize, yRange, colo
   return Math.sqrt(sumSq / sampleCount);
 }
 
-const ChannelCanvas = memo(function ChannelCanvas({ chIdx, eeg, yRange, expanded, onToggleExpand, active = true }) {
+const ChannelCanvas = memo(function ChannelCanvas({ chIdx, eegData, yRange, expanded, onToggleExpand, active = true }) {
   const canvasRef = useRef(null);
   const rafRef = useRef(0);
   const rmsRef = useRef(0);
@@ -155,7 +155,7 @@ const ChannelCanvas = memo(function ChannelCanvas({ chIdx, eeg, yRange, expanded
       }
 
       // Skip draw if no new data since last frame
-      const wi = eeg.writeIndex.current;
+      const wi = eegData.writeIndex.current;
       if (wi === lastWriteIdxRef.current) {
         rafRef.current = requestAnimationFrame(tick);
         return;
@@ -178,10 +178,10 @@ const ChannelCanvas = memo(function ChannelCanvas({ chIdx, eeg, yRange, expanded
 
       const rms = drawChannel(
         ctx, w, h,
-        eeg.buffers.current[chIdx],
-        eeg.samplesInBuffer.current,
+        eegData.buffers.current[chIdx],
+        eegData.samplesInBuffer.current,
         wi,
-        eeg.bufferSize,
+        eegData.bufferSize,
         yRange,
         TRACE_COLORS[chIdx],
         qualityRef.current,
@@ -218,7 +218,7 @@ const ChannelCanvas = memo(function ChannelCanvas({ chIdx, eeg, yRange, expanded
 
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [chIdx, eeg, yRange, active]);
+  }, [chIdx, eegData, yRange, active]);
 
   // Inactive placeholder — no canvas, no RAF, minimal DOM
   if (!active) {

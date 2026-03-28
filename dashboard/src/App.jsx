@@ -322,7 +322,7 @@ export default function App() {
             <div className="expanded-channel" onClick={(e) => e.stopPropagation()}>
               <ChannelCanvas
                 chIdx={expandedCh}
-                eeg={eeg}
+                eegData={eeg.data}
                 yRange={yScale}
                 expanded
                 active
@@ -336,14 +336,14 @@ export default function App() {
             <ChannelCanvas
               key={i}
               chIdx={i}
-              eeg={eeg}
+              eegData={eeg.data}
               yRange={yScale}
               active={activeChannels.has(i)}
               onToggleExpand={() => toggleExpandCh(i)}
             />
           ))}
         </div>
-        {showFFT && <SpectralPanel eeg={eeg} />}
+        {showFFT && <SpectralPanel eegData={eeg.data} />}
       </div>
 
       {/* Recording result modal */}
@@ -401,7 +401,7 @@ export default function App() {
 
       {/* XR immersive view */}
       {xrActive && (
-        <XRWaveView eeg={eeg} yScale={yScale} onExit={() => setXrActive(false)} />
+        <XRWaveView eegData={eeg.data} yScale={yScale} onExit={() => setXrActive(false)} />
       )}
 
       {/* Performance Monitor (press P to toggle) */}
