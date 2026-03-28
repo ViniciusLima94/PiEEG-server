@@ -8,11 +8,20 @@
 [![Downloads](https://img.shields.io/pypi/dm/pieeg-server)](https://pypi.org/project/pieeg-server/)
 
 A lightweight server for the [PiEEG-16](https://github.com/pieeg-club/PiEEG-16) shield that initializes the hardware, reads 16 channels at 250 Hz, streams live data over WebSocket, and serves a real-time dashboard — all on your local network.
+
+```bash
+pip install pieeg-server
+```
+
 <p align="left">
+    <img width="1245" height="930" alt="image" src="https://github.com/user-attachments/assets/0db75f93-03c8-4876-a168-330eb626a494" />
   <img width="20%" alt="Dashboard overview" src="https://github.com/user-attachments/assets/6e88f47c-f17e-47f8-a088-771f1a064d43" />
   <img width="20%" alt="Spectral analysis" src="https://github.com/user-attachments/assets/e9255668-05dd-4738-80b5-7c2a18411f65" />
   <img width="20%" alt="Channel detail" src="https://github.com/user-attachments/assets/1dca8e35-d645-46a5-b957-245b65f5dd82" />
   <img width="20%" alt="image" src="https://github.com/user-attachments/assets/a837586b-8df1-4e86-9ff9-c72e94830953" />
+      <img height="65" alt="image" src="https://github.com/user-attachments/assets/7d58af68-85c4-41d3-b1ab-89b23e99faff" />
+
+
 </p>
 
 
@@ -108,11 +117,6 @@ Built with React + Vite, it provides a modern UI with per-channel canvases.
   - EEG frequency band power bars: Delta (δ 0.5–4 Hz), Theta (θ 4–8 Hz), Alpha (α 8–13 Hz), Beta (β 13–30 Hz), Gamma (γ 30–100 Hz)
   - Per-channel or all-channel average analysis
   - Dominant frequency detection
-
-<img height="400" alt="image" src="https://github.com/user-attachments/assets/3f33bfd4-c721-4b94-a672-2a0b744d127b" />
-
-### Terminal
-<img width="422" height="475" alt="image" src="https://github.com/user-attachments/assets/7d58af68-85c4-41d3-b1ab-89b23e99faff" />
 
 ## Record data
 
