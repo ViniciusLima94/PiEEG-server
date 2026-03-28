@@ -348,6 +348,22 @@ body {
 .main-area.with-fft .grid {
   flex: 0 0 50%;
 }
+.fft-area {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+.fft-area .spectral-panel {
+  flex: 1 1 55%;
+  min-width: 0;
+}
+.fft-area .topomap-panel {
+  flex: 1 1 45%;
+  min-width: 0;
+  border-top: none;
+  border-left: 1px solid var(--border);
+}
 .grid {
   flex: 1;
   display: grid;
@@ -593,7 +609,8 @@ body {
 
 .spectral-canvas-wrap {
   position: relative;
-  height: 160px;
+  flex: 1;
+  min-height: 100px;
   background: var(--bg);
 }
 .spectral-paused {
@@ -610,17 +627,22 @@ body {
 }
 
 .spectral-bands {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  padding: 8px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 4px 12px;
 }
 .sp-band {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 2px 4px;
   border-radius: 4px;
   border: 1px solid transparent;
   transition: all 0.15s;
+  flex: 1 1 0;
+  min-width: 0;
 }
 .sp-band:hover {
   background: rgba(255, 255, 255, 0.03);
@@ -629,12 +651,6 @@ body {
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
 }
-.sp-band-head {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 4px;
-}
 .sp-band-dot {
   width: 6px;
   height: 6px;
@@ -642,41 +658,40 @@ body {
   flex-shrink: 0;
 }
 .sp-band-name {
-  font-size: 11px;
-  font-weight: 600;
-}
-.sp-band-hz {
   font-size: 9px;
-  color: var(--text-dim);
-  margin-left: auto;
-  font-family: monospace;
+  font-weight: 600;
+  white-space: nowrap;
 }
 .sp-band-track {
-  height: 6px;
+  flex: 1;
+  height: 4px;
   background: rgba(255, 255, 255, 0.06);
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
-  margin-bottom: 2px;
+  min-width: 24px;
 }
 .sp-band-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 2px;
   transition: width 0.2s ease;
 }
 .sp-band-val {
   font-size: 9px;
   font-family: monospace;
   color: var(--text-dim);
+  min-width: 36px;
+  text-align: right;
 }
-
-.spectral-footer {
-  display: flex;
-  justify-content: space-between;
-  padding: 4px 12px 6px;
-  font-size: 10px;
+.sp-dominant {
+  font-size: 11px;
   font-family: monospace;
   color: var(--text-dim);
-  border-top: 1px solid var(--border);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.sp-dominant small {
+  font-size: 9px;
+  opacity: 0.7;
 }
 
 /* --- XR / VR View --- */
@@ -1189,4 +1204,116 @@ body {
   line-height: 1.6;
   vertical-align: middle;
   margin-right: 2px;
+}
+
+/* --- Topomap Panel --- */
+.topomap-panel {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.topomap-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.topomap-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.topomap-metrics {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.topo-metric {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 10px;
+  font-family: monospace;
+  padding: 1px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.12s;
+  line-height: 1.4;
+}
+.topo-metric:hover {
+  background: #484f58;
+  color: var(--text);
+}
+.topo-metric.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+.topo-pause {
+  margin-left: auto;
+}
+.topomap-canvas-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 120px;
+  background: var(--bg);
+}
+.topomap-bands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--border);
+}
+.topo-band {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 140px;
+}
+.topo-band-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.topo-band-name {
+  font-size: 9px;
+  font-family: monospace;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.topo-band-track {
+  flex: 1;
+  height: 4px;
+  background: rgba(48, 54, 61, 0.5);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 30px;
+}
+.topo-band-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  opacity: 0.8;
+}
+.topo-band-val {
+  font-size: 9px;
+  font-family: monospace;
+  color: var(--text-dim);
+  min-width: 40px;
+  text-align: right;
+}
+.topo-dominant {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text-dim);
+  margin-left: auto;
+  white-space: nowrap;
 }
