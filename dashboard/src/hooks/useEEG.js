@@ -139,23 +139,23 @@ export function useEEG(timeWindowSec = 4) {
 
         sampleCountRef.current++;
 
-        // Compute Hz via timestamp window
+        // Collect timestamp for Hz calculation — trim deferred to UI update
         const now = msg.t;
-        const ts = tsRef.current;
-        ts.push(now);
-        const cutoff = now - 2;
-        // Efficiently trim old timestamps
-        let readIdx = 0;
-        while (readIdx < ts.length && ts[readIdx] < cutoff) readIdx++;
-        if (readIdx > 0) {
-          ts.splice(0, readIdx);
-        }
+        tsRef.current.push(now);
 
         // Throttled React state update for header stats
         const wallNow = performance.now();
         if (wallNow - lastUIUpdate.current > UI_UPDATE_MS) {
           lastUIUpdate.current = wallNow;
           setSampleCount(sampleCountRef.current);
+
+          // Trim timestamps only during UI update (not every sample)
+          const ts = tsRef.current;
+          const cutoff = now - 2;
+          let readIdx = 0;
+          while (readIdx < ts.length && ts[readIdx] < cutoff) readIdx++;
+          if (readIdx > 0) ts.splice(0, readIdx);
+
           if (ts.length > 1) {
             const elapsed = ts[ts.length - 1] - ts[0];
             if (elapsed > 0) setHz(Math.round((ts.length - 1) / elapsed));

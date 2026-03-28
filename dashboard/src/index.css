@@ -248,6 +248,74 @@ body {
   background: var(--border);
 }
 
+/* --- Channel selector bar --- */
+.channel-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 20px;
+  background: rgba(22, 27, 34, 0.6);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.cs-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.cs-toggle {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.cs-toggle:hover {
+  background: #484f58;
+  color: var(--text);
+}
+.cs-grid {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.cs-ch {
+  width: 24px;
+  height: 20px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 10px;
+  font-family: monospace;
+  padding: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cs-ch:hover {
+  background: #484f58;
+  color: var(--text);
+}
+.cs-ch.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 700;
+}
+.cs-count {
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
 /* --- Channel grid --- */
 .main-area {
   flex: 1;
@@ -278,6 +346,21 @@ body {
   cursor: pointer;
   transition: outline 0.15s, box-shadow 0.15s;
   outline: 1px solid transparent;
+}
+.channel-cell.inactive {
+  opacity: 0.45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.channel-cell.inactive:hover {
+  opacity: 0.7;
+}
+.channel-off {
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--text-dim);
+  opacity: 0.6;
 }
 .channel-cell:hover {
   outline: 1px solid rgba(88, 166, 255, 0.35);
