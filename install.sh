@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# PiEEG-16-server: Remote installer
+# PiEEG server: Remote installer
 #
 # Usage:
 #   curl -sSL https://raw.githubusercontent.com/yelabb/PiEEG-16-server/main/install.sh | bash
@@ -8,7 +8,7 @@
 # This script:
 #   1. Checks that you're on a Raspberry Pi (or Linux)
 #   2. Installs git if needed
-#   3. Clones the PiEEG-16-server repository
+#   3. Clones the PiEEG server repository
 #   4. Runs setup.sh (which does the real work)
 #
 # Safe to re-run — it will pull the latest code if already cloned.
@@ -32,7 +32,7 @@ INSTALL_DIR="$HOME/PiEEG-16-server"
 
 echo ""
 echo "${BOLD}${CYAN}╔══════════════════════════════════════════╗${RESET}"
-echo "${BOLD}${CYAN}║       PiEEG-16 Server Installer          ║${RESET}"
+echo "${BOLD}${CYAN}║       PiEEG Server Installer            ║${RESET}"
 echo "${BOLD}${CYAN}╚══════════════════════════════════════════╝${RESET}"
 echo ""
 
@@ -80,7 +80,7 @@ if [ -d "$INSTALL_DIR/.git" ]; then
         echo "${YELLOW}WARNING:${RESET} Could not update (local changes?). Using existing code."
     }
 else
-    echo "Cloning PiEEG-16-server to $INSTALL_DIR..."
+    echo "Cloning PiEEG server to $INSTALL_DIR..."
     git clone "$REPO_URL" "$INSTALL_DIR" || {
         echo "${RED}ERROR:${RESET} Failed to clone repository."
         echo "  Check your internet connection and try again."

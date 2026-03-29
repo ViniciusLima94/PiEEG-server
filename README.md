@@ -1,4 +1,4 @@
-# PiEEG-16-server
+# PiEEG-server
 
 [![PyPI](https://img.shields.io/pypi/v/pieeg-server?color=blue)](https://pypi.org/project/pieeg-server/)
 [![Python](https://img.shields.io/pypi/pyversions/pieeg-server)](https://pypi.org/project/pieeg-server/)
@@ -7,7 +7,7 @@
 [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-c51a4a)](https://www.raspberrypi.com/)
 [![Downloads](https://img.shields.io/pypi/dm/pieeg-server)](https://pypi.org/project/pieeg-server/)
 
-A lightweight server for the [PiEEG-16](https://github.com/pieeg-club/PiEEG-16) shield that initializes the hardware, reads 16 channels at 250 Hz, streams live data over WebSocket, and serves a real-time dashboard — all on your local network.
+A lightweight server for the [PiEEG](https://github.com/pieeg-club/PiEEG-16) shields (8 or 16 channels) that initializes the hardware, reads EEG at 250 Hz, streams live data over WebSocket, and serves a real-time dashboard — all on your local network.
 
 ```bash
 pip install pieeg-server
@@ -62,7 +62,8 @@ sudo reboot   # only needed first time, to enable SPI
 ## Run
 
 ```bash
-pieeg-server              # start streaming
+pieeg-server              # start streaming (16ch by default)
+pieeg-server --device pieeg8   # use with PiEEG-8 shield (8 channels)
 pieeg-server --filter     # with 1–40 Hz bandpass filter
 pieeg-server --monitor    # with live terminal display
 pieeg-server --mock       # synthetic data, no hardware needed
@@ -154,7 +155,7 @@ ws.on("message", (message) => {
 - Payload type: text frames containing JSON
 - Message cadence: server-pushed, continuous
 - Required fields in each frame: `t`, `n`, `channels`
-- `channels` length: 16
+- `channels` length: 8 or 16 (reported in welcome message)
 
 </details>
 
@@ -231,7 +232,7 @@ Each WebSocket message is a JSON frame:
 |-------|------|-------------|
 | `t` | float | Unix timestamp (seconds) |
 | `n` | int | Sample number (monotonic) |
-| `channels` | float[16] | Voltage in microvolts (µV) per channel |
+| `channels` | float[] | Voltage in microvolts (µV) per channel (8 or 16 elements) |
 
 
 ## CLI Options
@@ -245,6 +246,7 @@ Commands:
   monitor                Live terminal display (standalone, no server)
 
 Server options:
+  --device DEVICE        pieeg8 or pieeg16 (default: pieeg16)
   --host HOST            Bind address (default: 0.0.0.0)
   --port PORT            WebSocket port (default: 1616)
   --dashboard-port PORT  Dashboard HTTP port (default: 1617)
@@ -274,7 +276,7 @@ Clients can send JSON commands over the WebSocket:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Raspberry Pi 5 + PiEEG-16 Shield                       │
+│  Raspberry Pi 5 + PiEEG Shield (8 or 16 ch)             │
 │                                                          │
 │  hardware.py     → SPI/GPIO init, ADC register config    │
 │       ↓                                                  │
@@ -341,7 +343,7 @@ The dashboard is served at `http://raspberrypi.local:1617`.
 Built with React + Vite, it provides a modern UI with per-channel canvases.
 
 **Features:**
-- 16-channel real-time EEG waveforms (4×4 grid)
+- Real-time EEG waveforms (adapts to 8 or 16 channels)
 - Pause / resume, bandpass filter controls, adjustable time window & scale
 - **Spectral Analysis (FFT)** — toggle the **FFT** button to open the spectral panel:
   - Pure-JS Cooley-Tukey radix-2 FFT (256-point, Hanning window)
@@ -359,7 +361,7 @@ pieeg-server --record session.csv                  # record while streaming
 pieeg-server --record session.csv --record-duration 60  # record 60s while streaming
 ```
 
-CSV format: `timestamp, ch1, ch2, ..., ch16` (compatible with the official PiEEG-16 dataset format).
+CSV format: `timestamp, ch1, ch2, ..., chN` (8 or 16 columns depending on device).
 
 ## Terminal monitor
 
@@ -368,7 +370,7 @@ pieeg-server monitor          # standalone live view (no server)
 pieeg-server --monitor        # live view alongside the server
 ```
 
-Displays all 16 channels with real-time µV values and sparkline waveforms directly in the terminal. Works over SSH — no browser or display needed.
+Displays all channels with real-time µV values and sparkline waveforms directly in the terminal. Works over SSH — no browser or display needed.
 
 > **`pieeg-server: command not found`?** Run `pieeg-server doctor` (or `./setup.sh` again).
 > As a fallback: `cd PiEEG-16-server && .venv/bin/pieeg-server`
@@ -503,7 +505,7 @@ This project was built with guidance from [Ildar Rakhmatulin, PhD](https://schol
 
 ## Security
 
-PiEEG-16-server is designed for **trusted local networks** (home lab, research bench). It is **not hardened for the public internet**. Here's an honest breakdown of what's protected and what isn't.
+PiEEG server is designed for **trusted local networks** (home lab, research bench). It is **not hardened for the public internet**. Here's an honest breakdown of what's protected and what isn't.
 
 ### What's secured
 
@@ -550,9 +552,9 @@ It does **not** defend against:
 
 ## Safety
 
-> **PiEEG-16 must operate from battery power (5V) only.**
+> **PiEEG must operate from battery power (5V) only.**
 > Do NOT connect to mains-powered equipment via USB.
-> PiEEG-16 is NOT a medical device.
+> PiEEG is NOT a medical device.
 
 ## License
 

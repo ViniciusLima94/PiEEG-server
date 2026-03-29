@@ -1,5 +1,5 @@
 """
-HTTP server serving the PiEEG-16 real-time dashboard.
+HTTP server serving the PiEEG real-time dashboard.
 
 Serves the React/Vite build on port 1617 (one above the WebSocket data
 port 1616).  Uses only the standard library.
@@ -42,7 +42,7 @@ _LOGIN_PAGE = """\
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PiEEG-16 · Access Code</title>
+<title>PiEEG · Access Code</title>
 <style>
   :root { --bg:#0d1117; --surface:#161b22; --border:#30363d;
           --text:#e6edf3; --dim:#8b949e; --accent:#58a6ff; --red:#f85149; }
@@ -70,7 +70,7 @@ _LOGIN_PAGE = """\
 </head>
 <body>
 <div class="card">
-  <h1>Pi<span>EEG</span>-16</h1>
+  <h1>Pi<span>EEG</span></h1>
   <p class="sub">Enter the access code displayed in the server console</p>
   <form method="POST" action="/auth">
     <input type="text" name="code" maxlength="6" pattern="[0-9]{6}"

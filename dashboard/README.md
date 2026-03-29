@@ -1,6 +1,6 @@
-# PiEEG-16 Dashboard
+# PiEEG Dashboard
 
-Real-time 16-channel EEG visualization dashboard built with React 19 + Vite 6. Connects to the PiEEG-16 server via WebSocket and renders live waveforms, spectral analysis, session playback, and an immersive WebXR view — all from a browser.
+Real-time EEG visualization dashboard built with React 19 + Vite 6. Connects to the PiEEG server via WebSocket and renders live waveforms, spectral analysis, session playback, and an immersive WebXR view — all from a browser. Supports both 8-channel and 16-channel configurations.
 
 ## Tech Stack
 

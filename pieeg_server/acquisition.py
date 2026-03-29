@@ -1,7 +1,7 @@
 """
-Threaded data acquisition loop for PiEEG-16.
+Threaded data acquisition loop for PiEEG.
 
-Reads 16-channel samples at 250 Hz from the hardware layer
+Reads EEG samples at 250 Hz from the hardware layer
 and pushes timestamped frames into an asyncio-safe queue
 for downstream consumers (WebSocket server, file writer, etc.).
 """
@@ -90,7 +90,7 @@ class AcquisitionLoop:
         """
         Tight loop: poll DRDY, read sample, push to async queue.
 
-        The original PiEEG-16 code uses a polling state machine:
+        The original PiEEG code uses a polling state machine:
         - Wait for DRDY pin to go HIGH (armed)
         - Wait for DRDY pin to go LOW (data ready)
         - Read SPI bytes

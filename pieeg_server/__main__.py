@@ -74,7 +74,7 @@ if not _is_doctor_command():
 def parse_args():
     p = argparse.ArgumentParser(
         prog="pieeg-server",
-        description="PiEEG-16 local streaming server",
+        description="PiEEG local streaming server",
     )
 
     # Shared device flag (top-level, inherited by subcommands)

@@ -220,8 +220,8 @@ export default function App() {
       {/* Header */}
       <header className="header">
         <h1>
-          Pi<span>EEG</span>-{numCh}
-          <small>Dashboard</small>
+          Pi<span>EEG</span>
+          <small>{numCh}ch Dashboard</small>
         </h1>
         <div className="status-bar">
           <span>
@@ -496,7 +496,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="footer">
-        <span style={{ fontFamily: "var(--mono)", letterSpacing: "-0.01em" }}>PiEEG-{numCh}</span>
+        <span style={{ fontFamily: "var(--mono)", letterSpacing: "-0.01em" }}>PiEEG {numCh}ch</span>
         <span className="kbd-hints">
           <kbd>Space</kbd> Pause
           <kbd>R</kbd> Record

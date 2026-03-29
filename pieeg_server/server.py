@@ -31,7 +31,7 @@ from .recorder import Recorder
 logger = logging.getLogger("pieeg.server")
 
 DEFAULT_HOST = "0.0.0.0"
-DEFAULT_PORT = 1616  # PiEEG-16 → 1616
+DEFAULT_PORT = 1616  # PiEEG → 1616
 
 
 class PiEEGServer:
@@ -69,7 +69,7 @@ class PiEEGServer:
             ping_interval=20, ping_timeout=10,
         ):
             logger.info(
-                "PiEEG-16 streaming on ws://%s:%d", self._host, self._port
+                "PiEEG streaming on ws://%s:%d", self._host, self._port
             )
             await self._broadcast_loop()
 

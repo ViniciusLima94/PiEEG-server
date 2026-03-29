@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared type definitions for the PiEEG-16 dashboard
+// Shared type definitions for the PiEEG dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { MutableRefObject } from "react";

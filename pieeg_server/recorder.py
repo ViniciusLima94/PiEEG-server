@@ -1,12 +1,12 @@
 """
-CSV recorder for PiEEG-16 EEG data.
+CSV recorder for PiEEG EEG data.
 
 Subscribes to the acquisition loop and writes every frame to a CSV file.
 Can be used standalone (``pieeg-server record``) or alongside the
 WebSocket server (``pieeg-server --record data.csv``).
 
-CSV format (matches the official PiEEG-16 Save_data format):
-    timestamp, ch1, ch2, ..., ch16
+CSV format (matches the official PiEEG Save_data format):
+    timestamp, ch1, ch2, ..., chN
 """
 
 import asyncio

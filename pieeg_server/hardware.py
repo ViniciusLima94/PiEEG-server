@@ -1,11 +1,11 @@
 """
-Low-level hardware interface for PiEEG-16.
+Low-level hardware interface for PiEEG.
 
-Manages two ADS1299 ADC chips via SPI (8 channels each = 16 total)
+Manages one or two ADS1299 ADC chips via SPI (8 channels each)
 and GPIO lines for chip-select and data-ready signaling.
 
 Requires: spidev (pip), Linux GPIO chardev (kernel, no pip package needed)
-Must run on Raspberry Pi with SPI enabled and PiEEG-16 shield connected.
+Must run on Raspberry Pi with SPI enabled and PiEEG shield connected.
 """
 
 import logging
@@ -333,7 +333,7 @@ class PiEEGHardware:
         self._send_command(chip_num, CMD_RESET)
         self._send_command(chip_num, CMD_SDATAC)
 
-        # Register configuration (matches original PiEEG-16 scripts)
+        # Register configuration (matches original PiEEG scripts)
         self._write_register(chip_num, 0x14, 0x80)  # GPIO
         self._write_register(chip_num, CONFIG1, 0x96)
         self._write_register(chip_num, CONFIG2, 0xD4)
