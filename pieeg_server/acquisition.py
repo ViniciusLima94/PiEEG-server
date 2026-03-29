@@ -10,7 +10,6 @@ import asyncio
 import threading
 import time
 
-NUM_CHANNELS = 16
 SAMPLE_RATE = 250  # Hz
 SAMPLE_INTERVAL = 1.0 / SAMPLE_RATE  # 4 ms
 
@@ -28,6 +27,11 @@ class AcquisitionLoop:
         self._sample_count = 0
         # Default subscriber for backward compat (.queue property)
         self._default_queue = self.subscribe()
+
+    @property
+    def num_channels(self) -> int:
+        """Number of channels provided by the underlying hardware."""
+        return self._hw.num_channels
 
     def subscribe(self, maxsize: int = 2048) -> asyncio.Queue:
         """Create and return a new queue that receives every frame."""

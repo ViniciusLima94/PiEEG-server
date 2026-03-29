@@ -18,6 +18,7 @@ const BACKOFF_MULTIPLIER = 2;
 
 export function useEEG(timeWindowSec = 4): UseEEGReturn {
   const [connected, setConnected] = useState(false);
+  const [numChannels, setNumChannels] = useState(NUM_CHANNELS);
   const [sampleCount, setSampleCount] = useState(0);
   const [hz, setHz] = useState(0);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
@@ -30,6 +31,7 @@ export function useEEG(timeWindowSec = 4): UseEEGReturn {
   const buffersRef = useRef<Float32Array[]>(null!);
   const writeIndexRef = useRef(0);
   const samplesInBufRef = useRef(0);
+  const numChRef = useRef(NUM_CHANNELS);
   const tsRef = useRef<number[]>([]);
   const pausedRef = useRef(false);
   const sampleCountRef = useRef(0);
@@ -39,10 +41,14 @@ export function useEEG(timeWindowSec = 4): UseEEGReturn {
   const bufferSize = SAMPLE_RATE * timeWindowSec;
   bufferSizeRef.current = bufferSize;
 
-  // Allocate ring buffers
-  if (!buffersRef.current || buffersRef.current[0].length !== bufferSize) {
+  // Allocate ring buffers (re-allocate if channel count or buffer size changes)
+  if (
+    !buffersRef.current ||
+    buffersRef.current.length !== numChRef.current ||
+    buffersRef.current[0].length !== bufferSize
+  ) {
     buffersRef.current = Array.from(
-      { length: NUM_CHANNELS },
+      { length: numChRef.current },
       () => new Float32Array(bufferSize)
     );
     writeIndexRef.current = 0;
@@ -143,17 +149,33 @@ export function useEEG(timeWindowSec = 4): UseEEGReturn {
           }
         }
 
-        if ("status" in msg) return;
+        if ("status" in msg) {
+          // Welcome message — read channel count from server
+          const serverCh = (msg as Record<string, unknown>).channels;
+          if (typeof serverCh === "number" && serverCh > 0 && serverCh <= NUM_CHANNELS) {
+            numChRef.current = serverCh;
+            setNumChannels(serverCh);
+            // Re-allocate buffers for new channel count
+            buffersRef.current = Array.from(
+              { length: serverCh },
+              () => new Float32Array(bufferSizeRef.current)
+            );
+            writeIndexRef.current = 0;
+            samplesInBufRef.current = 0;
+          }
+          return;
+        }
         if (pausedRef.current) return;
 
         const channels = (msg as WSSampleMessage).channels;
-        if (!channels || channels.length !== NUM_CHANNELS) return;
+        const nCh = numChRef.current;
+        if (!channels || channels.length !== nCh) return;
 
         // Write into ring buffers (no React state — refs only)
         const bufs = buffersRef.current;
         const bs = bufferSizeRef.current;
         const wi = writeIndexRef.current;
-        for (let ch = 0; ch < NUM_CHANNELS; ch++) {
+        for (let ch = 0; ch < nCh; ch++) {
           bufs[ch][wi] = channels[ch];
         }
         writeIndexRef.current = (wi + 1) % bs;
@@ -206,15 +228,18 @@ export function useEEG(timeWindowSec = 4): UseEEGReturn {
       writeIndex: writeIndexRef,
       samplesInBuffer: samplesInBufRef,
       bufferSize,
+      numChannels: numChRef.current,
       gridSuspended: false,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // bufferSize changes are synced via the mutable property:
   data.bufferSize = bufferSize;
+  data.numChannels = numChannels;
 
   return {
     connected,
+    numChannels,
     sampleCount,
     hz,
     latencyMs,

@@ -101,9 +101,13 @@ _HANDLE_DATA_SIZE    = 64   # sizeof(struct gpiohandle_data)
 
 
 class PiEEGHardware:
-    """Hardware abstraction for the PiEEG-16 shield."""
+    """Hardware abstraction for PiEEG shields (8 or 16 channels)."""
 
-    def __init__(self, gpio_chip: str = "/dev/gpiochip4"):
+    def __init__(self, gpio_chip: str = "/dev/gpiochip4",
+                 num_channels: int = 16):
+        if num_channels not in (8, 16):
+            raise ValueError(f"num_channels must be 8 or 16, got {num_channels}")
+        self._num_channels = num_channels
         self._gpio_chip_name = gpio_chip
         self._chip_fd = -1
         self._cs_fd = -1
@@ -114,21 +118,26 @@ class PiEEGHardware:
         self._spike_count = 0
         self._consecutive_rejects = 0
 
+    @property
+    def num_channels(self) -> int:
+        return self._num_channels
+
     # --- lifecycle ---
 
     def open(self):
-        """Initialize GPIO and SPI, configure both ADC chips."""
+        """Initialize GPIO and SPI, configure ADC chip(s)."""
         _require_hardware_libs()
         self._init_gpio()
         self._init_spi()
         self._configure_adc(chip_num=1)
-        self._configure_adc(chip_num=2)
+        if self._num_channels == 16:
+            self._configure_adc(chip_num=2)
 
     def close(self):
         """Release all hardware resources."""
         if self._spi1:
             self._spi1.close()
-        if self._spi2:
+        if self._spi2 and self._num_channels == 16:
             self._spi2.close()
         if self._cs_fd >= 0:
             os.close(self._cs_fd)
@@ -151,32 +160,38 @@ class PiEEGHardware:
 
     def read_sample(self):
         """
-        Read one 16-channel sample from the ADC.
+        Read one sample from the ADC (8 or 16 channels).
 
         Returns None on status header mismatch.
-        Returns a list of 16 floats (microvolts) on success.
+        Returns a list of floats (microvolts) on success.
 
         Caller (acquisition loop) is responsible for DRDY polling.
         """
-        # Read 27 bytes from each ADC chip
+        # Read 27 bytes from ADC chip 1
         raw1 = self._spi1.readbytes(BYTES_PER_READ)
 
-        self._cs_set(0)
-        raw2 = self._spi2.readbytes(BYTES_PER_READ)
-        self._cs_set(1)
+        if self._num_channels == 16:
+            self._cs_set(0)
+            raw2 = self._spi2.readbytes(BYTES_PER_READ)
+            self._cs_set(1)
 
-        # Spike detection: check last channel of chip 2 (bytes 24-26)
-        if not self._is_valid_frame(raw2):
-            return None
+            # Spike detection: check last channel of chip 2 (bytes 24-26)
+            if not self._is_valid_frame(raw2):
+                return None
 
-        # Validate status bytes from chip 2
-        if (raw2[0], raw2[1], raw2[2]) != EXPECTED_STATUS:
-            return None
+            # Validate status bytes from chip 2
+            if (raw2[0], raw2[1], raw2[2]) != EXPECTED_STATUS:
+                return None
 
-        channels = []
-        channels.extend(self._decode_channels(raw1))
-        channels.extend(self._decode_channels(raw2))
-        return channels
+            channels = []
+            channels.extend(self._decode_channels(raw1))
+            channels.extend(self._decode_channels(raw2))
+            return channels
+        else:
+            # 8-channel mode: spike detection on chip 1
+            if not self._is_valid_frame(raw1):
+                return None
+            return self._decode_channels(raw1)
 
     def _is_valid_frame(self, raw: list[int]) -> bool:
         """Spike detection matching the original not_spike script.
@@ -286,12 +301,13 @@ class PiEEGHardware:
         self._spi1.mode = SPI_MODE
         self._spi1.bits_per_word = SPI_BITS
 
-        self._spi2 = spidev.SpiDev()
-        self._spi2.open(0, 1)
-        self._spi2.max_speed_hz = SPI_SPEED_HZ
-        self._spi2.lsbfirst = False
-        self._spi2.mode = SPI_MODE
-        self._spi2.bits_per_word = SPI_BITS
+        if self._num_channels == 16:
+            self._spi2 = spidev.SpiDev()
+            self._spi2.open(0, 1)
+            self._spi2.max_speed_hz = SPI_SPEED_HZ
+            self._spi2.lsbfirst = False
+            self._spi2.mode = SPI_MODE
+            self._spi2.bits_per_word = SPI_BITS
 
     def _send_command(self, chip_num: int, command: int):
         if chip_num == 1:

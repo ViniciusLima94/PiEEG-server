@@ -39,11 +39,13 @@ class PiEEGServer:
 
     def __init__(self, acquisition: AcquisitionLoop,
                  host: str = DEFAULT_HOST, port: int = DEFAULT_PORT,
-                 auth: AuthManager | None = None):
+                 auth: AuthManager | None = None,
+                 num_channels: int = 16):
         self._acq = acquisition
         self._host = host
         self._port = port
         self._auth = auth
+        self._num_channels = num_channels
         self._clients: set[websockets.WebSocketServerProtocol] = set()
         self._filter: MultichannelFilter | None = None
         self._queue = acquisition.subscribe()
@@ -53,7 +55,9 @@ class PiEEGServer:
         self._recordings_dir = Path("recordings")
 
     def enable_filter(self, lowcut: float = 1.0, highcut: float = 40.0):
-        self._filter = MultichannelFilter(lowcut=lowcut, highcut=highcut)
+        self._filter = MultichannelFilter(
+            num_channels=self._num_channels, lowcut=lowcut, highcut=highcut,
+        )
 
     def disable_filter(self):
         self._filter = None
@@ -89,7 +93,7 @@ class PiEEGServer:
         welcome = {
             "status": "connected",
             "sample_rate": 250,
-            "channels": 16,
+            "channels": self._num_channels,
             "filter": self._filter is not None,
         }
         welcome.update(self._get_record_status())

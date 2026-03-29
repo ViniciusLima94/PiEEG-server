@@ -19,7 +19,6 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { NUM_CHANNELS } from "./types";
 import type { SelectOption } from "./types";
 
-const ALL_CHANNELS = new Set(Array.from({ length: NUM_CHANNELS }, (_, i) => i));
 const DEFAULT_MOBILE = new Set([0, 1, 2, 3]);
 
 type ViewState = "live" | "sessions" | "playback";
@@ -53,11 +52,25 @@ export default function App() {
   const [showSpectrogram, setShowSpectrogram] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const eeg = useEEG(timeWindow);
+  const numCh = eeg.numChannels;
+
+  const allChannels = new Set(Array.from({ length: numCh }, (_, i) => i));
+
   const [activeChannels, setActiveChannels] = useState<Set<number>>(() =>
-    window.innerWidth < 768 ? new Set(DEFAULT_MOBILE) : new Set(ALL_CHANNELS)
+    window.innerWidth < 768 ? new Set(DEFAULT_MOBILE) : new Set(Array.from({ length: NUM_CHANNELS }, (_, i) => i))
   );
 
-  const eeg = useEEG(timeWindow);
+  // Sync activeChannels when numChannels changes (e.g. server reports 8 ch)
+  useEffect(() => {
+    setActiveChannels((prev) => {
+      const next = new Set([...prev].filter((i) => i < numCh));
+      if (next.size === 0) {
+        return new Set(Array.from({ length: numCh }, (_, i) => i));
+      }
+      return next;
+    });
+  }, [numCh]);
 
   // Keep active channels in a ref so toggleExpandCh stays stable
   const activeChRef = useRef(activeChannels);
@@ -73,8 +86,8 @@ export default function App() {
   }, []);
 
   const setAllChannels = useCallback((on: boolean) => {
-    setActiveChannels(on ? new Set(ALL_CHANNELS) : new Set());
-  }, []);
+    setActiveChannels(on ? new Set(allChannels) : new Set());
+  }, [numCh]);
 
   function togglePause() {
     const next = !paused;
@@ -207,7 +220,7 @@ export default function App() {
       {/* Header */}
       <header className="header">
         <h1>
-          Pi<span>EEG</span>-16
+          Pi<span>EEG</span>-{numCh}
           <small>Dashboard</small>
         </h1>
         <div className="status-bar">
@@ -356,7 +369,7 @@ export default function App() {
         <button className="cs-toggle" onClick={() => setAllChannels(true)}>All</button>
         <button className="cs-toggle" onClick={() => setAllChannels(false)}>None</button>
         <div className="cs-grid">
-          {Array.from({ length: NUM_CHANNELS }, (_, i) => (
+          {Array.from({ length: numCh }, (_, i) => (
             <button
               key={i}
               className={`cs-ch${activeChannels.has(i) ? " on" : ""}`}
@@ -366,7 +379,7 @@ export default function App() {
             </button>
           ))}
         </div>
-        <span className="cs-count">{activeChannels.size}/{NUM_CHANNELS}</span>
+        <span className="cs-count">{activeChannels.size}/{numCh}</span>
       </div>
 
       {/* Main area */}
@@ -381,7 +394,7 @@ export default function App() {
           />
         )}
         <div className="grid">
-          {Array.from({ length: NUM_CHANNELS }, (_, i) => (
+          {Array.from({ length: numCh }, (_, i) => (
             <ChannelCanvas
               key={i}
               chIdx={i}
@@ -483,7 +496,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="footer">
-        <span style={{ fontFamily: "var(--mono)", letterSpacing: "-0.01em" }}>PiEEG-16</span>
+        <span style={{ fontFamily: "var(--mono)", letterSpacing: "-0.01em" }}>PiEEG-{numCh}</span>
         <span className="kbd-hints">
           <kbd>Space</kbd> Pause
           <kbd>R</kbd> Record

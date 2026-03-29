@@ -19,16 +19,17 @@ from pathlib import Path
 
 logger = logging.getLogger("pieeg.recorder")
 
-CSV_HEADER = [
-    "timestamp",
-    *(f"ch{i}" for i in range(1, 17)),
-]
+
+def _make_csv_header(num_channels: int = 16) -> list[str]:
+    return ["timestamp", *(f"ch{i}" for i in range(1, num_channels + 1))]
 
 
 class Recorder:
     """Async consumer that writes EEG frames to a CSV file."""
 
-    def __init__(self, acquisition, output: str | Path, duration: float | None = None):
+    def __init__(self, acquisition, output: str | Path,
+                 duration: float | None = None,
+                 num_channels: int = 16):
         """
         Parameters
         ----------
@@ -40,6 +41,7 @@ class Recorder:
         self._queue = acquisition.subscribe(maxsize=4096)
         self._output = Path(output)
         self._duration = duration
+        self._num_channels = num_channels
         self._frames_written = 0
         self._start_time: float | None = None
 
@@ -53,7 +55,7 @@ class Recorder:
 
         with open(self._output, "w", newline="") as fh:
             writer = csv.writer(fh)
-            writer.writerow(CSV_HEADER)
+            writer.writerow(_make_csv_header(self._num_channels))
 
             self._start_time = time.time()
             logger.info("Recording to %s%s",
