@@ -76,6 +76,235 @@ Open **http://raspberrypi.local:1617** in any browser on your network for the re
 - **`:1616`** — WebSocket data stream (PiEEG-**16** → **1616**)
 - **`:1617`** — Web dashboard (next door)
 
+
+## Connect from any device
+
+The stream is a plain WebSocket that emits UTF-8 JSON frames on `ws://<host>:1616`.
+
+- Replace `<host>` with `raspberrypi.local`, the Pi's IP, or `localhost`.
+- No SDK is required. Any language or tool that can open a WebSocket can consume the stream.
+- Without `--auth`, connect directly to `ws://<host>:1616`.
+- With `--auth`, first authenticate on `http://<host>:1617/auth`, then request `http://<host>:1617/auth/ws-token`, then connect to `ws://<host>:1616?token=...`.
+
+<details open>
+<summary><strong>Tab 1: No Auth Examples</strong></summary>
+
+### Command line
+
+```bash
+# websocat
+websocat ws://raspberrypi.local:1616
+
+# Node-based CLI
+npx wscat -c ws://raspberrypi.local:1616
+
+# Python one-liner
+python -c "import asyncio, json, websockets; async def main():\n    async with websockets.connect('ws://raspberrypi.local:1616') as ws:\n        print(json.loads(await ws.recv()))\nasyncio.run(main())"
+```
+
+### Python
+
+```python
+import asyncio
+import json
+
+import websockets
+
+
+async def main():
+    async with websockets.connect("ws://raspberrypi.local:1616") as ws:
+        async for message in ws:
+            frame = json.loads(message)
+            print(f"Sample #{frame['n']}: {frame['channels']}")
+
+
+asyncio.run(main())
+```
+
+### JavaScript (browser)
+
+```javascript
+const ws = new WebSocket("ws://raspberrypi.local:1616");
+
+ws.onmessage = (event) => {
+  const frame = JSON.parse(event.data);
+  console.log(`Sample #${frame.n}:`, frame.channels);
+};
+```
+
+### Node.js
+
+```javascript
+import WebSocket from "ws";
+
+const ws = new WebSocket("ws://raspberrypi.local:1616");
+
+ws.on("message", (message) => {
+  const frame = JSON.parse(message.toString());
+  console.log(`Sample #${frame.n}:`, frame.channels);
+});
+```
+
+### Generic client checklist
+
+- URL: `ws://<host>:1616`
+- Method: WebSocket upgrade
+- Payload type: text frames containing JSON
+- Message cadence: server-pushed, continuous
+- Required fields in each frame: `t`, `n`, `channels`
+- `channels` length: 16
+
+</details>
+
+<details>
+<summary><strong>Tab 2: TypeScript with --auth</strong></summary>
+
+```ts
+const dashboardBase = "http://raspberrypi.local:1617";
+const wsBase = "ws://raspberrypi.local:1616";
+const accessCode = "<ACCESS_CODE_PRINTED_BY_PIEEG_SERVER_ON_STARTUP>";
+
+async function connectAuthenticated(): Promise<WebSocket> {
+  const authResponse = await fetch(`${dashboardBase}/auth`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ code: accessCode }),
+  });
+
+  const authPayload = await authResponse.json();
+  if (!authResponse.ok || authPayload.ok === false) {
+    throw new Error(authPayload.error ?? "Authentication failed");
+  }
+
+  const tokenResponse = await fetch(`${dashboardBase}/auth/ws-token`, {
+    credentials: "include",
+  });
+  if (!tokenResponse.ok) {
+    throw new Error(`Token request failed: ${tokenResponse.status}`);
+  }
+
+  const { token } = (await tokenResponse.json()) as { token: string };
+  const ws = new WebSocket(`${wsBase}?token=${encodeURIComponent(token)}`);
+
+  ws.addEventListener("message", (event) => {
+    const frame = JSON.parse(event.data as string) as {
+      t: number;
+      n: number;
+      channels: number[];
+    };
+
+    console.log(`Sample #${frame.n}:`, frame.channels);
+  });
+
+  return ws;
+}
+
+void connectAuthenticated();
+```
+
+Authenticated flow summary:
+
+1. Start the server with `pieeg-server --auth`.
+2. `POST /auth` with the 6-digit code.
+3. Reuse the session cookie returned by the dashboard server.
+4. `GET /auth/ws-token` to obtain a short-lived, single-use WebSocket token.
+5. Connect to `ws://<host>:1616?token=<token>`.
+
+</details>
+
+## Data Format
+
+Each WebSocket message is a JSON frame:
+
+```json
+{
+    "t": 1711234567.123456,
+    "n": 42,
+    "channels": [12.34, -5.67, 8.90, ...]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `t` | float | Unix timestamp (seconds) |
+| `n` | int | Sample number (monotonic) |
+| `channels` | float[16] | Voltage in microvolts (µV) per channel |
+
+
+## CLI Options
+
+```
+pieeg-server [OPTIONS] [COMMAND]
+
+Commands:
+  doctor                 Diagnose hardware, software, and configuration
+  record FILE            Record EEG data to CSV (standalone, no server)
+  monitor                Live terminal display (standalone, no server)
+
+Server options:
+  --host HOST            Bind address (default: 0.0.0.0)
+  --port PORT            WebSocket port (default: 1616)
+  --dashboard-port PORT  Dashboard HTTP port (default: 1617)
+  --no-dashboard         Disable the web dashboard
+  --auth                 Enable authentication (requires 6-digit access code)
+  --gpio-chip PATH       GPIO chip device path (default: /dev/gpiochip4)
+  --filter               Enable 1–40 Hz bandpass filter server-side
+  --lowcut HZ            Filter low cutoff (default: 1.0)
+  --highcut HZ           Filter high cutoff (default: 40.0)
+  --record FILE          Record to CSV while streaming
+  --record-duration SEC  Stop recording after N seconds
+  --monitor              Show live terminal monitor alongside server
+  --mock                 Synthetic EEG data (no hardware needed)
+  -v, --verbose          Debug logging
+```
+
+## Runtime Commands
+
+Clients can send JSON commands over the WebSocket:
+
+```json
+{"cmd": "set_filter", "enabled": true, "lowcut": 1.0, "highcut": 40.0}
+{"cmd": "set_filter", "enabled": false}
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Raspberry Pi 5 + PiEEG-16 Shield                       │
+│                                                          │
+│  hardware.py     → SPI/GPIO init, ADC register config    │
+│       ↓                                                  │
+│  acquisition.py  → 250 Hz read loop (background thread)  │
+│       ↓ pub/sub (multiple consumers)                     │
+│       ├── server.py    → WebSocket broadcast             │
+│       ├── recorder.py  → CSV file writer                 │
+│       └── monitor.py   → Terminal sparkline display      │
+│       ↓                                                  │
+│  dashboard.py    → HTTP server for real-time web UI       │
+│       ↓                                                  │
+│  ws://0.0.0.0:1616  │  http://0.0.0.0:1617              │
+└──────────┬───────────────────────────────────────────────┘
+           │  Local network
+           ├── Browser (JS client)
+           ├── Python notebook
+           ├── Mobile app
+           └── Any WebSocket client
+```
+
+## Runs as a Service
+
+Setup creates a systemd service that auto-starts on boot:
+
+```bash
+sudo systemctl status pieeg-server    # check status
+sudo systemctl stop pieeg-server      # stop
+sudo systemctl restart pieeg-server   # restart
+journalctl -u pieeg-server -f         # view logs
+```
+
+
 ### Authentication
 
 By default, the dashboard is **open to anyone on your network** (no authentication required).
@@ -171,134 +400,6 @@ If the system-wide `pieeg-server` command picks up the wrong Python install, use
 
 > On Windows you can only use mock mode (`pieeg-server --mock`) since SPI/GPIO hardware is not available.
 
-## Connect from any device
-
-> **Note:** The WebSocket now requires a token. Get one from the authenticated HTTP API first.
-
-### Python
-
-```python
-import asyncio, json, requests, websockets
-
-# Step 1: authenticate and get a WS token
-session = requests.Session()
-ACCESS_CODE = "<ACCESS_CODE_PRINTED_BY_PIEEG_SERVER_ON_STARTUP>"
-session.post("http://raspberrypi.local:1617/auth", json={"code": ACCESS_CODE})
-token = session.get("http://raspberrypi.local:1617/auth/ws-token").json()["token"]
-
-# Step 2: connect with the token
-async def main():
-    async with websockets.connect(f"ws://raspberrypi.local:1616?token={token}") as ws:
-        async for message in ws:
-            frame = json.loads(message)
-            print(f"Sample #{frame['n']}: {frame['channels']}")
-
-asyncio.run(main())
-```
-
-### JavaScript (browser)
-
-```javascript
-// Fetch a short-lived WS token (requires an active dashboard session)
-const res = await fetch("/auth/ws-token", { credentials: "include" });
-const { token } = await res.json();
-
-const ws = new WebSocket(`ws://raspberrypi.local:1616?token=${encodeURIComponent(token)}`);
-ws.onmessage = (event) => {
-    const frame = JSON.parse(event.data);
-    console.log(`Sample #${frame.n}:`, frame.channels);
-};
-```
-
-## Data Format
-
-Each WebSocket message is a JSON frame:
-
-```json
-{
-    "t": 1711234567.123456,
-    "n": 42,
-    "channels": [12.34, -5.67, 8.90, ...]
-}
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `t` | float | Unix timestamp (seconds) |
-| `n` | int | Sample number (monotonic) |
-| `channels` | float[16] | Voltage in microvolts (µV) per channel |
-
-## CLI Options
-
-```
-pieeg-server [OPTIONS] [COMMAND]
-
-Commands:
-  doctor                 Diagnose hardware, software, and configuration
-  record FILE            Record EEG data to CSV (standalone, no server)
-  monitor                Live terminal display (standalone, no server)
-
-Server options:
-  --host HOST            Bind address (default: 0.0.0.0)
-  --port PORT            WebSocket port (default: 1616)
-  --dashboard-port PORT  Dashboard HTTP port (default: 1617)
-  --no-dashboard         Disable the web dashboard
-  --auth                 Enable authentication (requires 6-digit access code)
-  --gpio-chip PATH       GPIO chip device path (default: /dev/gpiochip4)
-  --filter               Enable 1–40 Hz bandpass filter server-side
-  --lowcut HZ            Filter low cutoff (default: 1.0)
-  --highcut HZ           Filter high cutoff (default: 40.0)
-  --record FILE          Record to CSV while streaming
-  --record-duration SEC  Stop recording after N seconds
-  --monitor              Show live terminal monitor alongside server
-  --mock                 Synthetic EEG data (no hardware needed)
-  -v, --verbose          Debug logging
-```
-
-## Runtime Commands
-
-Clients can send JSON commands over the WebSocket:
-
-```json
-{"cmd": "set_filter", "enabled": true, "lowcut": 1.0, "highcut": 40.0}
-{"cmd": "set_filter", "enabled": false}
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Raspberry Pi 5 + PiEEG-16 Shield                       │
-│                                                          │
-│  hardware.py     → SPI/GPIO init, ADC register config    │
-│       ↓                                                  │
-│  acquisition.py  → 250 Hz read loop (background thread)  │
-│       ↓ pub/sub (multiple consumers)                     │
-│       ├── server.py    → WebSocket broadcast             │
-│       ├── recorder.py  → CSV file writer                 │
-│       └── monitor.py   → Terminal sparkline display      │
-│       ↓                                                  │
-│  dashboard.py    → HTTP server for real-time web UI       │
-│       ↓                                                  │
-│  ws://0.0.0.0:1616  │  http://0.0.0.0:1617              │
-└──────────┬───────────────────────────────────────────────┘
-           │  Local network
-           ├── Browser (JS client)
-           ├── Python notebook
-           ├── Mobile app
-           └── Any WebSocket client
-```
-
-## Runs as a Service
-
-Setup creates a systemd service that auto-starts on boot:
-
-```bash
-sudo systemctl status pieeg-server    # check status
-sudo systemctl stop pieeg-server      # stop
-sudo systemctl restart pieeg-server   # restart
-journalctl -u pieeg-server -f         # view logs
-```
 
 ## GPIO: No `gpiod` Dependency
 
@@ -406,12 +507,12 @@ PiEEG-16-server is designed for **trusted local networks** (home lab, research b
 
 | Layer | Protection |
 |-------|------------|
-| **Dashboard access** | 6-digit code required on first visit. Regenerated every server restart. |
+| **Dashboard access** | Optional. Enabled only when you start the server with `--auth`; then a 6-digit code is required on first visit and regenerated every restart. |
 | **Session tokens** | Cryptographically random (`secrets.token_urlsafe`, 256-bit), stored server-side with 24h TTL. |
 | **Constant-time comparison** | Access code checked via `hmac.compare_digest` — immune to timing attacks. |
 | **HttpOnly cookie** | Session token can't be read by JavaScript (mitigates XSS token theft). |
 | **SameSite=Lax cookie** | Prevents cross-site request forgery on state-changing POST requests. |
-| **WebSocket authentication** | Connections require a short-lived, single-use token obtained via the authenticated HTTP API. Unauthenticated WebSocket connections are rejected with code 4401. |
+| **WebSocket authentication** | Optional. When `--auth` is enabled, connections require a short-lived, single-use token obtained via the authenticated HTTP API. Without `--auth`, the WebSocket is open on your local network. |
 | **Rate limiting** | `/auth` endpoint limited to 5 attempts per IP per 60 seconds (prevents brute-force on the 6-digit code). |
 | **Path traversal protection** | `/recordings/` downloads resolve paths and verify they stay inside the recordings directory. |
 | **CORS** | `Access-Control-Allow-Origin` reflects the requesting origin (not wildcard) and only when credentials are involved. |
