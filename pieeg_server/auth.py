@@ -1,5 +1,5 @@
 """
-Simple session authentication for PiEEG-16 dashboards.
+Simple session authentication for PiEEG dashboards.
 
 Generates a random 6-digit code at server start, displayed in the console.
 Browsers must submit this code once; a session cookie keeps them authenticated.

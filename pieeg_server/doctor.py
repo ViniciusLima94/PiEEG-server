@@ -1,5 +1,5 @@
 """
-Diagnostic tool for PiEEG-16-server.
+Diagnostic tool for PiEEG server.
 
 Checks hardware, software, and configuration to help users debug
 installation issues. Run with: pieeg-server doctor
@@ -63,7 +63,7 @@ def run_doctor(quiet: bool = False) -> int:
             _fail(msg)
 
     if not quiet:
-        print(f"\n{_BOLD}PiEEG-16 Doctor{_RESET}")
+        print(f"\n{_BOLD}PiEEG Doctor{_RESET}")
         print(f"{'─' * 40}\n")
 
     # ── 1. Platform ──

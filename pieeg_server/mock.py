@@ -20,14 +20,19 @@ SAMPLE_RATE = 250
 class MockHardware:
     """Drop-in replacement for PiEEGHardware that generates synthetic data."""
 
-    def __init__(self):
+    def __init__(self, num_channels: int = NUM_CHANNELS):
+        self._num_channels = num_channels
         self._start_time = None
         self._sample_index = 0
         # Per-channel random parameters for variety
-        self._alpha_amp = [random.uniform(15, 50) for _ in range(NUM_CHANNELS)]
-        self._alpha_freq = [random.uniform(9, 11) for _ in range(NUM_CHANNELS)]
-        self._alpha_phase = [random.uniform(0, 2 * math.pi) for _ in range(NUM_CHANNELS)]
-        self._noise_amp = [random.uniform(5, 20) for _ in range(NUM_CHANNELS)]
+        self._alpha_amp = [random.uniform(15, 50) for _ in range(self._num_channels)]
+        self._alpha_freq = [random.uniform(9, 11) for _ in range(self._num_channels)]
+        self._alpha_phase = [random.uniform(0, 2 * math.pi) for _ in range(self._num_channels)]
+        self._noise_amp = [random.uniform(5, 20) for _ in range(self._num_channels)]
+
+    @property
+    def num_channels(self) -> int:
+        return self._num_channels
 
     def open(self):
         self._start_time = time.time()
@@ -41,7 +46,7 @@ class MockHardware:
         self._sample_index += 1
 
         channels = []
-        for ch in range(NUM_CHANNELS):
+        for ch in range(self._num_channels):
             # Alpha oscillation (8-12 Hz)
             alpha = self._alpha_amp[ch] * math.sin(
                 2 * math.pi * self._alpha_freq[ch] * t + self._alpha_phase[ch]

@@ -1,5 +1,5 @@
 """
-Self-update logic for PiEEG-16-server.
+Self-update logic for PiEEG server.
 
 Detects the installation method and provides check/apply update capabilities
 exposed as JSON API endpoints from the dashboard.

@@ -36,6 +36,16 @@ def acq(event_loop):
     hw.close()
 
 
+@pytest.fixture
+def acq8(event_loop):
+    hw = MockHardware(num_channels=8)
+    hw.open()
+    a = AcquisitionLoop(hw, event_loop, mock=True)
+    yield a
+    a.stop()
+    hw.close()
+
+
 class TestFrameSchema:
     """Every frame must have the correct structure."""
 
@@ -54,6 +64,16 @@ class TestFrameSchema:
         assert isinstance(frame["n"], int)
         assert isinstance(frame["channels"], list)
         assert len(frame["channels"]) == NUM_CHANNELS
+
+    def test_8ch_frame_has_8_channels(self, acq8, event_loop):
+        acq8.start()
+
+        async def check():
+            frame = await asyncio.wait_for(acq8.queue.get(), timeout=2.0)
+            assert len(frame["channels"]) == 8
+            assert acq8.num_channels == 8
+
+        event_loop.run_until_complete(check())
 
     def test_channel_values_are_finite(self, acq, event_loop):
         acq.start()

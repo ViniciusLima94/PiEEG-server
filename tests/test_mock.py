@@ -26,6 +26,14 @@ def hw():
     h.close()
 
 
+@pytest.fixture
+def hw8():
+    h = MockHardware(num_channels=8)
+    h.open()
+    yield h
+    h.close()
+
+
 class TestMockHardwareBasics:
     """Fundamental data integrity checks."""
 
@@ -56,6 +64,23 @@ class TestMockHardwareBasics:
         with MockHardware() as h:
             sample = h.read_sample()
             assert len(sample) == NUM_CHANNELS
+
+    def test_8ch_returns_8_channels(self, hw8):
+        sample = hw8.read_sample()
+        assert isinstance(sample, list)
+        assert len(sample) == 8
+
+    def test_8ch_num_channels_property(self, hw8):
+        assert hw8.num_channels == 8
+
+    def test_16ch_num_channels_property(self, hw):
+        assert hw.num_channels == 16
+
+    def test_8ch_no_nan_or_inf(self, hw8):
+        for _ in range(1000):
+            sample = hw8.read_sample()
+            for ch_val in sample:
+                assert math.isfinite(ch_val), f"Non-finite value: {ch_val}"
 
 
 class TestSignalAmplitude:

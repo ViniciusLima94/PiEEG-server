@@ -74,7 +74,13 @@ if not _is_doctor_command():
 def parse_args():
     p = argparse.ArgumentParser(
         prog="pieeg-server",
-        description="PiEEG-16 local streaming server",
+        description="PiEEG local streaming server",
+    )
+
+    # Shared device flag (top-level, inherited by subcommands)
+    device_kwargs = dict(
+        type=str, choices=["pieeg8", "pieeg16"], default="pieeg16",
+        help="Hardware profile: pieeg8 (1 ADC, 8 ch) or pieeg16 (2 ADCs, 16 ch) — default: pieeg16",
     )
 
     sub = p.add_subparsers(dest="command")
@@ -96,6 +102,9 @@ def parse_args():
     )
     rec.add_argument(
         "output", help="Output CSV file path",
+    )
+    rec.add_argument(
+        "--device", **device_kwargs,
     )
     rec.add_argument(
         "--duration", type=float, default=None,
@@ -124,6 +133,9 @@ def parse_args():
         help="Use synthetic EEG data (no hardware needed)",
     )
     mon.add_argument(
+        "--device", **device_kwargs,
+    )
+    mon.add_argument(
         "--gpio-chip", default="/dev/gpiochip4",
         help="GPIO chip device path (default: '/dev/gpiochip4' for Pi 5)",
     )
@@ -133,6 +145,9 @@ def parse_args():
     )
 
     # --- server options (default command) ---
+    p.add_argument(
+        "--device", **device_kwargs,
+    )
     p.add_argument(
         "--host", default="0.0.0.0",
         help="Bind address (default: 0.0.0.0 = all interfaces)",
@@ -192,16 +207,23 @@ def parse_args():
     return p.parse_args()
 
 
+def _num_channels_from_device(device: str) -> int:
+    """Map --device flag to channel count."""
+    return 8 if device == "pieeg8" else 16
+
+
 def _make_hardware(args, logger):
     """Create and open the hardware backend (real or mock)."""
+    num_ch = _num_channels_from_device(getattr(args, "device", "pieeg16"))
     if args.mock:
         from .mock import MockHardware
-        logger.info("Starting in MOCK mode (synthetic EEG data)")
-        hw = MockHardware()
+        logger.info("Starting in MOCK mode (%d-channel synthetic EEG data)", num_ch)
+        hw = MockHardware(num_channels=num_ch)
     else:
         from .hardware import PiEEGHardware
-        logger.info("Initializing PiEEG-16 hardware (GPIO chip: %s)...", args.gpio_chip)
-        hw = PiEEGHardware(gpio_chip=args.gpio_chip)
+        logger.info("Initializing PiEEG-%d hardware (GPIO chip: %s)...",
+                    num_ch, args.gpio_chip)
+        hw = PiEEGHardware(gpio_chip=args.gpio_chip, num_channels=num_ch)
     hw.open()
     if not args.mock:
         logger.info("Hardware initialized - ADCs configured, LEDs should be ON")
@@ -235,7 +257,8 @@ def main():
         asyncio.set_event_loop(loop)
         acq = AcquisitionLoop(hw, loop, mock=args.mock)
         acq.start()
-        recorder = Recorder(acq, output=args.output, duration=args.duration)
+        recorder = Recorder(acq, output=args.output, duration=args.duration,
+                            num_channels=acq.num_channels)
 
         def _rec_shutdown(*_):
             logger.info("Stopping recording...")
@@ -269,7 +292,7 @@ def main():
         asyncio.set_event_loop(loop)
         acq = AcquisitionLoop(hw, loop, mock=args.mock)
         acq.start()
-        monitor = TerminalMonitor(acq)
+        monitor = TerminalMonitor(acq, num_channels=acq.num_channels)
 
         def _mon_shutdown(*_):
             acq.stop()
@@ -312,10 +335,13 @@ def main():
 
     acq = AcquisitionLoop(hw, loop, mock=args.mock)
     acq.start()
-    logger.info("Acquisition started (250 Hz, 16 channels%s)", " - MOCK" if args.mock else "")
+    num_ch = acq.num_channels
+    logger.info("Acquisition started (250 Hz, %d channels%s)",
+                num_ch, " - MOCK" if args.mock else "")
 
     # --- Server ---
-    server = PiEEGServer(acq, host=args.host, port=args.port, auth=auth)
+    server = PiEEGServer(acq, host=args.host, port=args.port, auth=auth,
+                         num_channels=num_ch)
     if args.filter:
         server.enable_filter(args.lowcut, args.highcut)
         logger.info("Server-side filter: %.1f-%.1f Hz", args.lowcut, args.highcut)
@@ -335,7 +361,8 @@ def main():
     recorder_task = None
     if args.record:
         from .recorder import Recorder
-        recorder = Recorder(acq, output=args.record, duration=args.record_duration)
+        recorder = Recorder(acq, output=args.record, duration=args.record_duration,
+                            num_channels=num_ch)
         logger.info("Recording to %s%s",
                     args.record,
                     f" for {args.record_duration}s" if args.record_duration else "")
@@ -345,7 +372,7 @@ def main():
     monitor_task = None
     if args.monitor:
         from .monitor import TerminalMonitor
-        monitor = TerminalMonitor(acq)
+        monitor = TerminalMonitor(acq, num_channels=num_ch)
 
     # --- Graceful shutdown ---
     shutdown_event = None
@@ -380,7 +407,8 @@ def main():
     except socket.gaierror:
         local_ip = "127.0.0.1"
 
-    logger.info("PiEEG-16 server ready:")
+    device_label = f"PiEEG-{num_ch}"
+    logger.info("%s server ready:", device_label)
     logger.info("  WebSocket: ws://%s:%d", local_ip, args.port)
     logger.info("  WebSocket: ws://%s.local:%d  (mDNS)", hostname, args.port)
     if not args.no_dashboard:

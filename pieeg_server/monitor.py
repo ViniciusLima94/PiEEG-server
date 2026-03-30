@@ -34,12 +34,14 @@ def _sparkline(values: list[float]) -> str:
 class TerminalMonitor:
     """Async consumer that renders a live Rich table in the terminal."""
 
-    def __init__(self, acquisition, refresh_hz: float = 4.0):
+    def __init__(self, acquisition, refresh_hz: float = 4.0,
+                 num_channels: int = 16):
         self._acq = acquisition
         self._queue = acquisition.subscribe(maxsize=512)
         self._refresh_interval = 1.0 / refresh_hz
+        self._num_channels = num_channels
         self._histories: list[deque] = [
-            deque(maxlen=HISTORY_LEN) for _ in range(16)
+            deque(maxlen=HISTORY_LEN) for _ in range(num_channels)
         ]
         self._last_frame: dict | None = None
         self._start_time = time.time()
@@ -74,7 +76,7 @@ class TerminalMonitor:
             frame = await self._queue.get()
             self._last_frame = frame
             channels = frame.get("channels", [])
-            for i, v in enumerate(channels[:16]):
+            for i, v in enumerate(channels[:self._num_channels]):
                 self._histories[i].append(v)
 
     def _build_table(self, Table, Text):
@@ -82,8 +84,9 @@ class TerminalMonitor:
         elapsed = time.time() - self._start_time
         n = self._last_frame["n"] if self._last_frame else 0
 
+        device_label = f"PiEEG-{self._num_channels}"
         table = Table(
-            title=f"[bold cyan]PiEEG-16 Monitor[/]  "
+            title=f"[bold cyan]{device_label} Monitor[/]  "
                   f"[dim]samples: {n:,}  "
                   f"uptime: {elapsed:.0f}s[/]",
             show_lines=True,
@@ -93,7 +96,7 @@ class TerminalMonitor:
         table.add_column("µV", width=12, justify="right")
         table.add_column("Waveform", min_width=HISTORY_LEN)
 
-        for i in range(16):
+        for i in range(self._num_channels):
             hist = list(self._histories[i])
             value = f"{hist[-1]:+.1f}" if hist else "—"
             spark = _sparkline(hist) if len(hist) > 1 else ""

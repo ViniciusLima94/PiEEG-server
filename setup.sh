@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# PiEEG-16-server: One-time setup script for Raspberry Pi
+# PiEEG server: One-time setup script for Raspberry Pi
 # Run once on a fresh Raspberry Pi OS installation.
 #
 # Usage:
@@ -82,7 +82,7 @@ if detect_pi; then
     if [ "$PI_GEN" -ge 3 ]; then
         ok "GPIO chip: $GPIO_CHIP"
     else
-        warn "Pi generation $PI_GEN — PiEEG-16 is designed for Pi 3/4/5"
+        warn "Pi generation $PI_GEN — PiEEG is designed for Pi 3/4/5"
     fi
 else
     warn "Not running on a Raspberry Pi (or /proc/cpuinfo not available)"
@@ -214,7 +214,7 @@ fi
 
 sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
-Description=PiEEG-16 EEG Streaming Server
+Description=PiEEG EEG Streaming Server
 After=network.target
 
 [Service]

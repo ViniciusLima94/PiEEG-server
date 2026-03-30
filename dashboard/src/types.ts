@@ -1,16 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared type definitions for the PiEEG-16 dashboard
+// Shared type definitions for the PiEEG dashboard
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { MutableRefObject } from "react";
 
-/** Number of EEG channels. */
+/** Default / maximum number of EEG channels. */
 export const NUM_CHANNELS = 16;
 
 /** ADC sample rate in Hz. */
 export const SAMPLE_RATE = 250;
 
-/** Trace colours — one per channel (wraps at 8). */
+/** Trace colours — one per channel (wraps via index % length). */
 export const TRACE_COLORS: readonly string[] = [
   "#58a6ff", "#3fb950", "#d29922", "#f85149",
   "#bc8cff", "#39d2c0", "#f0883e", "#db61a2",
@@ -25,6 +25,7 @@ export interface EEGData {
   writeIndex: MutableRefObject<number>;
   samplesInBuffer: MutableRefObject<number>;
   bufferSize: number;
+  numChannels: number;
   gridSuspended: boolean;
 }
 
@@ -105,6 +106,7 @@ export interface Annotation {
 
 export interface UseEEGReturn {
   connected: boolean;
+  numChannels: number;
   sampleCount: number;
   hz: number;
   latencyMs: number | null;

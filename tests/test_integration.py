@@ -24,6 +24,7 @@ from pieeg_server.server import PiEEGServer
 # Use a high port to avoid conflicts
 TEST_HOST = "127.0.0.1"
 TEST_PORT = 19616
+TEST_PORT_8CH = 19617
 
 
 @pytest.fixture
@@ -40,11 +41,36 @@ def server_stack(event_loop):
     hw.open()
     acq = AcquisitionLoop(hw, event_loop, mock=True)
     acq.start()
-    server = PiEEGServer(acq, host=TEST_HOST, port=TEST_PORT)
+    server = PiEEGServer(acq, host=TEST_HOST, port=TEST_PORT,
+                         num_channels=acq.num_channels)
 
     server_task = event_loop.create_task(server.run())
 
     # Give server a moment to bind
+    event_loop.run_until_complete(asyncio.sleep(0.3))
+
+    yield server
+
+    acq.stop()
+    hw.close()
+    server_task.cancel()
+    try:
+        event_loop.run_until_complete(server_task)
+    except asyncio.CancelledError:
+        pass
+
+
+@pytest.fixture
+def server_stack_8ch(event_loop):
+    """Start 8-channel mock → acquisition → WebSocket server."""
+    hw = MockHardware(num_channels=8)
+    hw.open()
+    acq = AcquisitionLoop(hw, event_loop, mock=True)
+    acq.start()
+    server = PiEEGServer(acq, host=TEST_HOST, port=TEST_PORT_8CH,
+                         num_channels=acq.num_channels)
+
+    server_task = event_loop.create_task(server.run())
     event_loop.run_until_complete(asyncio.sleep(0.3))
 
     yield server
@@ -146,6 +172,31 @@ class TestFilterCommand:
                 raw = await asyncio.wait_for(ws.recv(), timeout=3.0)
                 frame = json.loads(raw)
                 assert "channels" in frame
+
+        event_loop.run_until_complete(check())
+
+
+class TestEightChannelPipeline:
+    """Full pipeline test with 8-channel hardware profile."""
+
+    def test_8ch_welcome_reports_8_channels(self, server_stack_8ch, event_loop):
+        async def check():
+            async with websockets.connect(f"ws://{TEST_HOST}:{TEST_PORT_8CH}") as ws:
+                raw = await asyncio.wait_for(ws.recv(), timeout=3.0)
+                msg = json.loads(raw)
+                assert msg["status"] == "connected"
+                assert msg["channels"] == 8
+
+        event_loop.run_until_complete(check())
+
+    def test_8ch_data_frames_have_8_channels(self, server_stack_8ch, event_loop):
+        async def check():
+            async with websockets.connect(f"ws://{TEST_HOST}:{TEST_PORT_8CH}") as ws:
+                await ws.recv()  # welcome
+                for _ in range(5):
+                    raw = await asyncio.wait_for(ws.recv(), timeout=3.0)
+                    frame = json.loads(raw)
+                    assert len(frame["channels"]) == 8
 
         event_loop.run_until_complete(check())
 
