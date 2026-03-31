@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, memo } from "react";
 import type { EEGData } from "../types";
 import { useChat } from "../hooks/useChat";
 import type { ChatConfig } from "../hooks/useChat";
+import WebcamFeed from "./WebcamFeed";
 
 // ── ChatPanel ────────────────────────────────────────────────────────────
 
@@ -77,6 +78,9 @@ const ChatPanel = memo(function ChatPanel({ eegData, open, onClose }: ChatPanelP
           onClose={() => setShowSettings(false)}
         />
       )}
+
+      {/* Webcam */}
+      <WebcamFeed active={open} />
 
       {/* Messages */}
       <div className="chat-messages">
