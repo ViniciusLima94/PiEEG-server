@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, memo } from "react";
 import type { EEGData } from "../types";
 import { useChat } from "../hooks/useChat";
 import type { ChatConfig } from "../hooks/useChat";
+import { useVideoContext } from "../hooks/useVideoContext";
 import WebcamFeed from "./WebcamFeed";
 
 // ── ChatPanel ────────────────────────────────────────────────────────────
@@ -13,7 +14,9 @@ interface ChatPanelProps {
 }
 
 const ChatPanel = memo(function ChatPanel({ eegData, open, onClose }: ChatPanelProps) {
-  const { messages, streaming, error, config, setConfig, send, clear } = useChat(eegData);
+  const webcamRef = useRef<HTMLVideoElement>(null);
+  const videoData = useVideoContext(webcamRef, open);
+  const { messages, streaming, error, config, setConfig, send, clear } = useChat(eegData, videoData);
   const [input, setInput] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -80,7 +83,7 @@ const ChatPanel = memo(function ChatPanel({ eegData, open, onClose }: ChatPanelP
       )}
 
       {/* Webcam */}
-      <WebcamFeed active={open} />
+      <WebcamFeed active={open} videoRef={webcamRef} videoData={videoData} />
 
       {/* Messages */}
       <div className="chat-messages">
