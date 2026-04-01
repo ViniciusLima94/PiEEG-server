@@ -49,11 +49,16 @@ DEFAULT_RULES_PATH = Path("webhooks.json")
 _hanning = np.hanning(FFT_SIZE).astype(np.float64)
 _freqs = np.fft.rfftfreq(FFT_SIZE, d=1.0 / SAMPLE_RATE)
 
+# Precompute band masks to avoid recomputing every eval
+_band_masks = {
+    band: (_freqs >= lo) & (_freqs <= hi)
+    for band, (lo, hi) in BANDS.items()
+}
+
 
 def _band_power(psd: np.ndarray, band: str) -> float:
     """Compute power in a frequency band from one-sided PSD."""
-    lo, hi = BANDS[band]
-    mask = (_freqs >= lo) & (_freqs <= hi)
+    mask = _band_masks[band]
     if not np.any(mask):
         return 0.0
     return float(np.mean(psd[mask]))
@@ -137,8 +142,10 @@ class WebhookEngine:
 
         # Ring buffer: (num_channels, FFT_SIZE)
         self._buf = np.zeros((num_channels, FFT_SIZE), dtype=np.float64)
+        self._ordered = np.empty(FFT_SIZE, dtype=np.float64)  # reusable scratch
         self._write_idx = 0
         self._samples_in_buf = 0
+        self._save_pending = False  # throttle disk writes
 
         # HTTP executor (bounded to avoid runaway threads)
         self._http_pool = ThreadPoolExecutor(max_workers=2,
@@ -239,17 +246,40 @@ class WebhookEngine:
             if self._samples_in_buf < FFT_SIZE:
                 continue  # not enough data yet
 
-            # Compute band powers for all channels
-            band_powers = {}  # {ch: {band: power}}
-            amplitudes = {}  # {ch: max_abs_amplitude}
-            for ch in range(self._num_channels):
-                # Extract ordered window from ring buffer
-                start = self._write_idx % FFT_SIZE
-                ordered = np.roll(self._buf[ch], -start)
-                psd = _compute_psd(ordered)
+            # Determine which channels any rule actually needs
+            needed_channels = set()
+            has_active = False
+            for rule in self._rules:
+                if not rule.enabled:
+                    continue
+                if now - rule.last_fired < rule.cooldown:
+                    continue
+                has_active = True
+                ch = rule.params.get("channel", 0)
+                if ch == "avg":
+                    needed_channels = set(range(self._num_channels))
+                    break
+                needed_channels.add(int(ch))
+
+            if not has_active:
+                continue
+
+            if not needed_channels:
+                needed_channels = set(range(self._num_channels))
+
+            # Compute band powers only for needed channels
+            band_powers = {}
+            amplitudes = {}
+            start = self._write_idx % FFT_SIZE
+            for ch in needed_channels:
+                # Direct slice + concat instead of np.roll (zero-copy)
+                row = self._buf[ch]
+                self._ordered[:FFT_SIZE - start] = row[start:]
+                self._ordered[FFT_SIZE - start:] = row[:start]
+                psd = _compute_psd(self._ordered)
                 bp = {band: _band_power(psd, band) for band in BANDS}
                 band_powers[ch] = bp
-                amplitudes[ch] = float(np.max(np.abs(ordered)))
+                amplitudes[ch] = float(np.max(np.abs(self._ordered)))
 
             # Evaluate each rule
             for rule in self._rules:
@@ -264,7 +294,7 @@ class WebhookEngine:
                 if triggered:
                     rule.last_fired = now
                     rule.fire_count += 1
-                    self._save_rules()
+                    self._save_pending = True
 
                     event = {
                         "webhook_event": {
@@ -291,6 +321,11 @@ class WebhookEngine:
                             self._http_pool,
                             self._fire_http, rule, value
                         )
+
+            # Batch-save to disk once per eval cycle (not per rule fire)
+            if self._save_pending:
+                self._save_pending = False
+                self._save_rules()
 
     # ── Rule evaluation ────────────────────────────────────────
 
