@@ -468,6 +468,77 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   Guided Presets
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Step banner */
+.preset-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--accent-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.preset-banner-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.preset-banner-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.preset-banner-head strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.preset-banner-step {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--accent-light);
+  background: rgba(0, 112, 243, 0.15);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+}
+
+.preset-banner-text {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 200px;
+}
+
+.preset-banner-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.preset-banner-actions .btn {
+  height: 26px;
+  font-size: 11px;
+  padding: 0 10px;
+}
+
+.preset-dismiss {
+  color: var(--text-dim) !important;
+  border-color: transparent !important;
+}
+
+.preset-dismiss:hover {
+  color: var(--text-secondary) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    Channel Grid
    ═══════════════════════════════════════════════════════════════════════ */
 

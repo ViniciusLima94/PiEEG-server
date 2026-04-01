@@ -240,3 +240,93 @@ export interface SelectOption<T> {
   value: T;
   label: string;
 }
+
+// ── Guided browser presets ───────────────────────────────────────────────
+
+export interface GuidedPreset {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  /** Which channels to enable (0-based). null = all. */
+  channels: number[] | null;
+  filterEnabled: boolean;
+  lowcut: number;
+  highcut: number;
+  timeWindow: 2 | 4 | 8 | 16;
+  yScale: 50 | 100 | 200 | 500;
+  showFFT: boolean;
+  showSpectrogram: boolean;
+  showStats: boolean;
+  /** Step-by-step guidance shown to the user. */
+  steps: string[];
+}
+
+export const GUIDED_PRESETS: GuidedPreset[] = [
+  {
+    id: "blink",
+    name: "Blink Exploration",
+    icon: "👁",
+    description: "Detect and explore eye blinks on frontal channels.",
+    channels: [0, 1],               // Fp1, Fp2
+    filterEnabled: false,
+    lowcut: 1,
+    highcut: 40,
+    timeWindow: 4,
+    yScale: 500,                     // Blinks are large amplitude
+    showFFT: false,
+    showSpectrogram: false,
+    showStats: true,
+    steps: [
+      "Frontal channels (1–2) are selected — these pick up eye blinks best.",
+      "Scale set to ±500 µV to capture the full blink waveform.",
+      "Blink naturally a few times and watch for sharp deflections.",
+      "Try blinking one eye at a time to see lateralised differences.",
+      "Stats panel shows peak-to-peak — blinks typically exceed 200 µV.",
+    ],
+  },
+  {
+    id: "alpha",
+    name: "Alpha / Eyes-Closed",
+    icon: "𝛼",
+    description: "Observe alpha rhythm (8–12 Hz) with eyes closed.",
+    channels: [5, 6, 7, 8, 9, 10],  // Occipital / parietal region
+    filterEnabled: true,
+    lowcut: 1,
+    highcut: 40,
+    timeWindow: 4,
+    yScale: 100,
+    showFFT: true,
+    showSpectrogram: true,
+    showStats: false,
+    steps: [
+      "Posterior channels selected — alpha is strongest over occipital cortex.",
+      "Bandpass filter (1–40 Hz) enabled to remove drift and line noise.",
+      "Close your eyes and relax for 10–15 seconds.",
+      "Watch the FFT panel — a peak near 8–12 Hz should appear.",
+      "Open your eyes and the alpha peak should drop. Repeat to confirm.",
+    ],
+  },
+  {
+    id: "quality",
+    name: "Quality / Artifact Inspection",
+    icon: "🔍",
+    description: "Inspect signal quality, noise floor, and artifacts across all channels.",
+    channels: null,                  // All channels
+    filterEnabled: false,
+    lowcut: 1,
+    highcut: 40,
+    timeWindow: 8,
+    yScale: 200,
+    showFFT: true,
+    showSpectrogram: false,
+    showStats: true,
+    steps: [
+      "All channels visible with no filter — you see the raw signal.",
+      "Look for flat lines (disconnected electrode) or 50/60 Hz buzz (mains hum).",
+      "Check the FFT panel for a sharp spike at 50 or 60 Hz.",
+      "Channels with high peak-to-peak in Stats may have poor contact.",
+      "Gently press each electrode and watch if the signal improves.",
+    ],
+  },
+];

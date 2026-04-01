@@ -19,7 +19,8 @@ import WebhookPanel from "./components/WebhookPanel";
 import { useWebhooks } from "./hooks/useWebhooks";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { NUM_CHANNELS } from "./types";
-import type { SelectOption } from "./types";
+import { GUIDED_PRESETS } from "./types";
+import type { SelectOption, GuidedPreset } from "./types";
 
 const DEFAULT_MOBILE = new Set([0, 1, 2, 3]);
 
@@ -70,6 +71,47 @@ export default function App() {
   }, []);
 
   const webhooks = useWebhooks(webhooksEnabled, eeg.data, eeg.sendCommand);
+
+  // ── Guided presets ──────────────────────────────────────────────────
+  const [activePreset, setActivePreset] = useState<GuidedPreset | null>(null);
+  const [presetStep, setPresetStep] = useState(0);
+
+  const applyPreset = useCallback((preset: GuidedPreset | null) => {
+    if (!preset) {
+      setActivePreset(null);
+      setPresetStep(0);
+      return;
+    }
+    setActivePreset(preset);
+    setPresetStep(0);
+    // Channels
+    if (preset.channels) {
+      setActiveChannels(new Set(preset.channels));
+    } else {
+      setActiveChannels(new Set(Array.from({ length: numCh }, (_, i) => i)));
+    }
+    // Filter
+    setFilterEnabled(preset.filterEnabled);
+    setLowcut(preset.lowcut);
+    setHighcut(preset.highcut);
+    eeg.sendCommand({
+      cmd: "set_filter",
+      enabled: preset.filterEnabled,
+      lowcut: preset.lowcut,
+      highcut: preset.highcut,
+    });
+    // Display
+    setTimeWindow(preset.timeWindow);
+    setYScale(preset.yScale);
+    setShowFFT(preset.showFFT);
+    setShowSpectrogram(preset.showSpectrogram);
+    setShowStats(preset.showStats);
+    // Unpause if paused
+    if (paused) {
+      setPaused(false);
+      eeg.setPaused(false);
+    }
+  }, [numCh, paused]);
 
   const allChannels = new Set(Array.from({ length: numCh }, (_, i) => i));
 
@@ -193,7 +235,8 @@ export default function App() {
           setShowSpectrogram((v) => !v);
           break;
         case "Escape":
-          if (xrActive) setXrActive(false);
+          if (activePreset) applyPreset(null);
+          else if (xrActive) setXrActive(false);
           else if (expandedCh !== null) setExpandedCh(null);
           else if (eeg.recordResult) eeg.dismissRecordResult();
           break;
@@ -330,6 +373,24 @@ export default function App() {
         </button>
         <div className="sep" />
         <div className="control-group">
+          <label>Guide</label>
+          <select
+            value={activePreset?.id ?? ""}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+              const id = e.target.value;
+              applyPreset(id ? GUIDED_PRESETS.find((p) => p.id === id) ?? null : null);
+            }}
+          >
+            <option value="">— none —</option>
+            {GUIDED_PRESETS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.icon} {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="sep" />
+        <div className="control-group">
           <label>Low</label>
           <input
             type="number"
@@ -406,6 +467,50 @@ export default function App() {
         </div>
         <span className="cs-count">{activeChannels.size}/{numCh}</span>
       </div>
+
+      {/* Guided preset step banner */}
+      {activePreset && (
+        <div className="preset-banner">
+          <div className="preset-banner-head">
+            <span className="preset-banner-icon">{activePreset.icon}</span>
+            <strong>{activePreset.name}</strong>
+            <span className="preset-banner-step">
+              Step {presetStep + 1} / {activePreset.steps.length}
+            </span>
+          </div>
+          <p className="preset-banner-text">{activePreset.steps[presetStep]}</p>
+          <div className="preset-banner-actions">
+            <button
+              className="btn"
+              disabled={presetStep === 0}
+              onClick={() => setPresetStep((s) => s - 1)}
+            >
+              ← Back
+            </button>
+            {presetStep < activePreset.steps.length - 1 ? (
+              <button
+                className="btn active"
+                onClick={() => setPresetStep((s) => s + 1)}
+              >
+                Next →
+              </button>
+            ) : (
+              <button
+                className="btn"
+                onClick={() => applyPreset(null)}
+              >
+                Done ✓
+              </button>
+            )}
+            <button
+              className="btn preset-dismiss"
+              onClick={() => applyPreset(null)}
+            >
+              Exit guide
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main area */}
       <ErrorBoundary>
