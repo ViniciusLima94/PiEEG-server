@@ -15,6 +15,7 @@ import StatsPanel from "./components/StatsPanel";
 import UpdateBanner from "./components/UpdateBanner";
 import ShortcutHelp from "./components/ShortcutHelp";
 import ChatPanel from "./components/ChatPanel";
+import WebhookPanel from "./components/WebhookPanel";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { NUM_CHANNELS } from "./types";
 import type { SelectOption } from "./types";
@@ -52,6 +53,7 @@ export default function App() {
   const [showSpectrogram, setShowSpectrogram] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showWebhooks, setShowWebhooks] = useState(false);
   const eeg = useEEG(timeWindow);
   const numCh = eeg.numChannels;
 
@@ -169,6 +171,9 @@ export default function App() {
           break;
         case "KeyC":
           setShowChat((v) => !v);
+          break;
+        case "KeyW":
+          setShowWebhooks((v) => !v);
           break;
         case "KeyG":
           setShowSpectrogram((v) => !v);
@@ -295,6 +300,12 @@ export default function App() {
           onClick={() => setShowChat((v) => !v)}
         >
           Chat
+        </button>
+        <button
+          className={`btn${showWebhooks ? " active" : ""}`}
+          onClick={() => setShowWebhooks((v) => !v)}
+        >
+          Webhooks
         </button>
         <button
           className="btn btn-xr"
@@ -491,6 +502,14 @@ export default function App() {
       {/* Chat side panel */}
       <ChatPanel eegData={eeg.data} open={showChat} onClose={() => setShowChat(false)} />
 
+      {/* Webhooks side panel */}
+      <WebhookPanel
+        open={showWebhooks}
+        onClose={() => setShowWebhooks(false)}
+        sendCommand={eeg.sendCommand}
+        numChannels={numCh}
+      />
+
       {/* Keyboard shortcut help (press ? to toggle) */}
       <ShortcutHelp />
 
@@ -505,6 +524,7 @@ export default function App() {
           <kbd>S</kbd> Stats
           <kbd>V</kbd> XR
           <kbd>C</kbd> Chat
+          <kbd>W</kbd> Hooks
           <kbd>Esc</kbd> Close
           <kbd>P</kbd> Perf
         </span>

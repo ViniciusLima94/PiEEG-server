@@ -193,6 +193,10 @@ def parse_args():
         help="Use synthetic EEG data (no hardware needed, for testing)",
     )
     p.add_argument(
+        "--no-webhooks", action="store_true",
+        help="Disable the webhook engine",
+    )
+    p.add_argument(
         "--record", metavar="FILE",
         help="Record EEG data to CSV while streaming",
     )
@@ -345,6 +349,11 @@ def main():
     if args.filter:
         server.enable_filter(args.lowcut, args.highcut)
         logger.info("Server-side filter: %.1f-%.1f Hz", args.lowcut, args.highcut)
+
+    # --- Webhooks ---
+    if not getattr(args, 'no_webhooks', False):
+        server.enable_webhooks()
+        logger.info("Webhooks enabled")
 
     # --- Dashboard ---
     dashboard = None

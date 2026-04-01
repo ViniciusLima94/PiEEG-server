@@ -149,6 +149,15 @@ export function useEEG(timeWindowSec = 4): UseEEGReturn {
           }
         }
 
+        // Forward webhook messages to panel handler
+        if ("webhook_rules" in msg || "webhook_created" in msg ||
+            "webhook_updated" in msg || "webhook_deleted" in msg ||
+            "webhook_event" in msg || "webhook_error" in msg ||
+            "webhook_test" in msg) {
+          const handler = (window as unknown as Record<string, unknown>).__webhookHandler;
+          if (typeof handler === "function") handler(msg);
+        }
+
         if ("status" in msg) {
           // Welcome message — read channel count from server
           const serverCh = (msg as Record<string, unknown>).channels;
