@@ -233,8 +233,9 @@ function RuleEditor({
   const [channel, setChannel] = useState(String(rule.params.channel ?? 0));
   const [threshold, setThreshold] = useState(String(rule.params.threshold ?? 10));
   const [url, setUrl] = useState(rule.url);
+  const [method, setMethod] = useState(rule.method || "POST");
+  const [authHeader, setAuthHeader] = useState(rule.headers?.Authorization || "");
   const [cooldown, setCooldown] = useState(String(rule.cooldown));
-  const [bodyTemplate, setBodyTemplate] = useState(rule.body_template);
 
   function handleSave() {
     const params: Record<string, unknown> = { threshold: parseFloat(threshold) || 0 };
@@ -246,9 +247,9 @@ function RuleEditor({
     if (NEEDS_CHANNEL.has(triggerType)) {
       params.channel = channel === "avg" ? "avg" : parseInt(channel) || 0;
     }
-    if (triggerType === "blink_detected" || triggerType === "jaw_clench") {
-      params.threshold = parseFloat(threshold) || (triggerType === "blink_detected" ? 150 : 120);
-    }
+
+    const headers: Record<string, string> = {};
+    if (authHeader.trim()) headers.Authorization = authHeader.trim();
 
     onSave({
       ...(rule.id ? { id: rule.id } : {}),
@@ -256,9 +257,8 @@ function RuleEditor({
       trigger_type: triggerType,
       params,
       url,
-      method: "POST",
-      headers: {},
-      body_template: bodyTemplate,
+      method,
+      headers,
       cooldown: parseFloat(cooldown) || 10,
     });
   }
@@ -326,6 +326,21 @@ function RuleEditor({
         placeholder="https://example.com/webhook"
       />
 
+      <label>Method</label>
+      <select value={method} onChange={(e) => setMethod(e.target.value)}>
+        <option value="POST">POST</option>
+        <option value="PUT">PUT</option>
+        <option value="PATCH">PATCH</option>
+        <option value="GET">GET</option>
+      </select>
+
+      <label>Authorization header</label>
+      <input
+        value={authHeader}
+        onChange={(e) => setAuthHeader(e.target.value)}
+        placeholder="Bearer your-token-here"
+      />
+
       <label>Cooldown (seconds)</label>
       <input
         type="number"
@@ -334,17 +349,6 @@ function RuleEditor({
         step="1"
         onChange={(e) => setCooldown(e.target.value)}
       />
-
-      <label>Body template (optional)</label>
-      <textarea
-        value={bodyTemplate}
-        onChange={(e) => setBodyTemplate(e.target.value)}
-        placeholder='{"event":"$trigger_type","value":$value}'
-        rows={3}
-      />
-      <small className="wh-hint">
-        Variables: $trigger_type, $rule_name, $value, $threshold, $channel, $band, $ts
-      </small>
 
       <div className="wh-editor-actions">
         <button className="btn" onClick={handleSave}>Save</button>

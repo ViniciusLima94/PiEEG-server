@@ -2641,7 +2641,7 @@ body {
 
 /* Rule card */
 .wh-rule-card {
-  background: var(--card);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 10px 12px;
@@ -2763,13 +2763,19 @@ body {
 .wh-editor input,
 .wh-editor select,
 .wh-editor textarea {
-  background: var(--card);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   color: var(--text);
   font-size: 12px;
   padding: 6px 8px;
   font-family: inherit;
+  color-scheme: dark;
+}
+
+.wh-editor select option {
+  background: var(--surface);
+  color: var(--text);
 }
 
 .wh-editor textarea {
@@ -2811,7 +2817,7 @@ body {
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  background: var(--card);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   font-size: 11px;
