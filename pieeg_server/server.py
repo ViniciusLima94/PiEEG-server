@@ -27,6 +27,7 @@ from .acquisition import AcquisitionLoop
 from .auth import AuthManager
 from .filters import MultichannelFilter
 from .recorder import Recorder
+from .webhooks import WebhookStore
 
 logger = logging.getLogger("pieeg.server")
 
@@ -53,6 +54,7 @@ class PiEEGServer:
         self._recorder_task: asyncio.Task | None = None
         self._record_start_time: float | None = None
         self._recordings_dir = Path("recordings")
+        self._webhooks: WebhookStore | None = None
 
     def enable_filter(self, lowcut: float = 1.0, highcut: float = 40.0):
         self._filter = MultichannelFilter(
@@ -61,6 +63,15 @@ class PiEEGServer:
 
     def disable_filter(self):
         self._filter = None
+
+    def enable_webhooks(self, rules_path=None):
+        """Create the webhook store (rules + HTTP relay)."""
+        kwargs = {}
+        if rules_path:
+            kwargs["rules_path"] = rules_path
+        self._webhooks = WebhookStore(**kwargs)
+        logger.info("Webhooks enabled (%d rules loaded)",
+                    len(self._webhooks.list_rules()))
 
     async def run(self):
         """Start the WebSocket server and the broadcast loop."""
@@ -101,14 +112,14 @@ class PiEEGServer:
 
         try:
             async for message in ws:
-                await self._handle_command(message)
+                await self._handle_command(message, ws)
         except websockets.ConnectionClosed:
             pass
         finally:
             self._clients.discard(ws)
             logger.info("Client disconnected: %s", peer)
 
-    async def _handle_command(self, raw: str):
+    async def _handle_command(self, raw: str, ws=None):
         """Process a client command."""
         try:
             msg = json.loads(raw)
@@ -132,6 +143,18 @@ class PiEEGServer:
             await self._start_recording()
         elif cmd == "stop_record":
             await self._stop_recording()
+        elif cmd == "webhook_list":
+            await self._ws_webhook_list(ws)
+        elif cmd == "webhook_create":
+            await self._ws_webhook_create(ws, msg)
+        elif cmd == "webhook_update":
+            await self._ws_webhook_update(ws, msg)
+        elif cmd == "webhook_delete":
+            await self._ws_webhook_delete(ws, msg)
+        elif cmd == "webhook_test":
+            await self._ws_webhook_test(ws, msg)
+        elif cmd == "webhook_fire":
+            await self._ws_webhook_fire(ws, msg)
 
     async def _start_recording(self):
         """Start recording EEG data to a timestamped CSV file."""
@@ -219,3 +242,73 @@ class PiEEGServer:
                     stale.add(ws)
 
             self._clients -= stale
+
+    # ── Webhook WebSocket handlers ─────────────────────────────
+
+    async def _ws_webhook_list(self, ws):
+        if not self._webhooks:
+            return
+        await ws.send(json.dumps({"webhook_rules": self._webhooks.list_rules()}))
+
+    async def _ws_webhook_create(self, ws, msg):
+        if not self._webhooks:
+            return
+        data = msg.get("rule", {})
+        rule = self._webhooks.create_rule(data)
+        await ws.send(json.dumps({"webhook_created": rule}))
+
+    async def _ws_webhook_update(self, ws, msg):
+        if not self._webhooks:
+            return
+        rule_id = msg.get("rule_id")
+        data = msg.get("rule", {})
+        result = self._webhooks.update_rule(rule_id, data)
+        if result:
+            await ws.send(json.dumps({"webhook_updated": result}))
+        else:
+            await ws.send(json.dumps({"webhook_error": "rule_not_found"}))
+
+    async def _ws_webhook_delete(self, ws, msg):
+        if not self._webhooks:
+            return
+        rule_id = msg.get("rule_id")
+        ok = self._webhooks.delete_rule(rule_id)
+        await ws.send(json.dumps({"webhook_deleted": ok, "rule_id": rule_id}))
+
+    async def _ws_webhook_test(self, ws, msg):
+        if not self._webhooks:
+            return
+        rule_id = msg.get("rule_id")
+        result = await self._webhooks.test_rule(rule_id)
+        await ws.send(json.dumps({"webhook_test": result}))
+
+    async def _ws_webhook_fire(self, ws, msg):
+        """Browser evaluated a trigger — relay the HTTP call."""
+        if not self._webhooks:
+            return
+        rule_id = msg.get("rule_id")
+        value = float(msg.get("value", 0))
+        result = await self._webhooks.fire_rule(rule_id, value)
+        if result.get("ok"):
+            event = {
+                "webhook_event": {
+                    "rule_id": rule_id,
+                    "value": round(value, 4),
+                    "ts": time.time(),
+                }
+            }
+            await self._broadcast_webhook_event(event)
+        await ws.send(json.dumps({"webhook_fire": result}))
+
+    async def _broadcast_webhook_event(self, event: dict):
+        """Relay webhook events to all connected dashboard clients."""
+        if not self._clients:
+            return
+        payload = json.dumps(event)
+        stale = set()
+        for ws in list(self._clients):
+            try:
+                await ws.send(payload)
+            except websockets.ConnectionClosed:
+                stale.add(ws)
+        self._clients -= stale

@@ -76,7 +76,57 @@ export interface WSRecordStatusMessage {
   };
 }
 
-export type WSMessage = WSSampleMessage | WSStatusMessage | WSRecordStatusMessage;
+export type WSMessage = WSSampleMessage | WSStatusMessage | WSRecordStatusMessage | WSWebhookMessage;
+
+// ── Webhook types ────────────────────────────────────────────────────────
+
+export const TRIGGER_TYPES = [
+  "band_power_above",
+  "band_power_below",
+  "amplitude_above",
+  "amplitude_below",
+  "band_ratio_above",
+  "band_ratio_below",
+] as const;
+
+export type TriggerType = (typeof TRIGGER_TYPES)[number];
+
+export const BANDS = ["delta", "theta", "alpha", "beta", "gamma"] as const;
+export type Band = (typeof BANDS)[number];
+
+export interface WebhookRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  trigger_type: TriggerType;
+  params: Record<string, unknown>;
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body_template: string;
+  cooldown: number;
+  last_fired: number;
+  fire_count: number;
+}
+
+export interface WebhookEvent {
+  rule_id: string;
+  rule_name: string;
+  trigger_type: string;
+  value: number;
+  threshold: number;
+  ts: number;
+}
+
+export interface WSWebhookMessage {
+  webhook_event?: WebhookEvent;
+  webhook_rules?: WebhookRule[];
+  webhook_created?: WebhookRule;
+  webhook_updated?: WebhookRule;
+  webhook_deleted?: boolean;
+  webhook_error?: string;
+  webhook_test?: { ok: boolean; error?: string };
+}
 
 // ── Recording / playback types ───────────────────────────────────────────
 
