@@ -12,6 +12,7 @@ import { useState, useRef, useCallback } from "react";
 import type { EEGData, BandPowers } from "../types";
 import { NUM_CHANNELS, SAMPLE_RATE } from "../types";
 import { FftEngine, FREQUENCY_BANDS } from "../lib/fftEngine";
+import { buildVideoContext, type VideoContextData } from "./useVideoContext";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -85,9 +86,13 @@ function buildEEGContext(eegData: EEGData): string {
 const SYSTEM_PROMPT =
   `You are an EEG research assistant embedded in the PiEEG dashboard. ` +
   `You can see a live snapshot of the user's EEG spectral data (band powers, ` +
-  `dominant frequencies). Answer questions about the data, suggest ` +
-  `interpretations, and help with EEG analysis. Be concise. ` +
-  `Remember: this is a research tool, not a medical device.`;
+  `dominant frequencies) and a webcam-based video context (blinks, head ` +
+  `movement, jaw activity). Use video context to identify likely artifact ` +
+  `sources in the EEG data — for example, blinks cause frontal spikes ` +
+  `(Fp1/Fp2), head movement causes broadband artifacts, and jaw clenching ` +
+  `causes high-frequency EMG on temporal channels (T7/T8). Answer questions ` +
+  `about the data, suggest interpretations, and help with EEG analysis. ` +
+  `Be concise. Remember: this is a research tool, not a medical device.`;
 
 // ── Hook ─────────────────────────────────────────────────────────────────
 
@@ -116,7 +121,7 @@ function saveConfig(c: ChatConfig) {
   localStorage.setItem(CONFIG_KEY, JSON.stringify(toSave));
 }
 
-export function useChat(eegData: EEGData): UseChatReturn {
+export function useChat(eegData: EEGData, videoData?: VideoContextData): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,6 +145,8 @@ export function useChat(eegData: EEGData): UseChatReturn {
       if (!text.trim() || streaming) return;
 
       const eegCtx = buildEEGContext(eegData);
+      const vidCtx = videoData ? buildVideoContext(videoData) : "";
+      const fullCtx = vidCtx ? `${eegCtx}\n\n${vidCtx}` : eegCtx;
       const userMsg: ChatMessage = { role: "user", content: text.trim() };
 
       setMessages((prev) => [...prev, userMsg]);
@@ -153,6 +160,7 @@ export function useChat(eegData: EEGData): UseChatReturn {
             `**Eco mode** — no API key configured. Here's what the AI would see:\n\n` +
             `---\n**System prompt:**\n${SYSTEM_PROMPT}\n\n` +
             `**EEG context:**\n${eegCtx}\n\n` +
+            (vidCtx ? `**Video context:**\n${vidCtx}\n\n` : "") +
             `**Your message:**\n${text.trim()}\n---\n\n` +
             `Add your API key & endpoint in ⚙ Settings to enable AI responses.`,
         };
@@ -166,7 +174,7 @@ export function useChat(eegData: EEGData): UseChatReturn {
       setStreaming(true);
 
       const apiMessages: ChatMessage[] = [
-        { role: "system", content: `${SYSTEM_PROMPT}\n\n${eegCtx}` },
+        { role: "system", content: `${SYSTEM_PROMPT}\n\n${fullCtx}` },
         // Include recent conversation for context (last 20 messages)
         ...messages.slice(-20),
         userMsg,
@@ -247,7 +255,7 @@ export function useChat(eegData: EEGData): UseChatReturn {
         }
       })();
     },
-    [config, eegData, messages, streaming]
+    [config, eegData, videoData, messages, streaming]
   );
 
   return { messages, streaming, error, config, setConfig, send, clear };

@@ -2094,6 +2094,184 @@ body {
   font-size: 12px;
 }
 
+/* Webcam Feed */
+.webcam-feed {
+  position: relative;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: #000;
+}
+
+.webcam-feed.minimized {
+  padding: 0;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+}
+
+.webcam-video-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.webcam-canvas {
+  display: block;
+  width: 100%;
+  height: 160px;
+  background: #0a0a0a;
+  border-radius: 0;
+}
+
+.webcam-toolbar {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.webcam-feed.minimized .webcam-toolbar {
+  position: static;
+  justify-content: center;
+}
+
+.webcam-toggle {
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.webcam-feed.minimized .webcam-toggle {
+  background: none;
+  width: 100%;
+  height: 32px;
+  border-radius: 0;
+  font-size: 16px;
+}
+
+.webcam-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.webcam-info-btn {
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.webcam-info-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text);
+}
+
+.webcam-info-tooltip {
+  position: absolute;
+  top: 34px;
+  right: 6px;
+  z-index: 3;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 10px 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  max-width: 240px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.webcam-info-tooltip p {
+  margin: 0 0 6px;
+}
+
+.webcam-info-tooltip p:last-child {
+  margin-bottom: 0;
+  opacity: 0.75;
+}
+
+.webcam-error {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* Webcam HUD overlay */
+.webcam-hud {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: #fff;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.hud-row {
+  display: inline-block;
+  line-height: 1.4;
+  padding: 1px 5px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 3px;
+}
+
+.webcam-blink-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(255, 220, 50, 0.45) 0%, rgba(255, 180, 0, 0.2) 60%, transparent 100%);
+  border: 2px solid rgba(255, 220, 50, 0.6);
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.05s ease-in, border-color 0.3s ease-out;
+  border-radius: 0;
+}
+
+.webcam-blink-flash[style*="opacity: 1"] ~ .webcam-hud .hud-row:first-child {
+  color: #ffd700;
+}
+
+.hud-blink-active {
+  background: rgba(255, 200, 0, 0.35);
+  color: #ffd700;
+}
+
+.hud-wink {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
 /* Chat Messages */
 .chat-messages {
   flex: 1;
