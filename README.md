@@ -255,6 +255,24 @@ Authenticated flow summary:
 
 </details>
 
+## Jupyter Notebooks
+
+The [`notebooks/`](notebooks/) folder contains ready-to-run examples that show how to work with PiEEG data in Python:
+
+| # | Notebook | Description |
+|---|----------|-------------|
+| 1 | `01_load_and_plot_session.ipynb` | Load a recorded CSV or stream live via WebSocket, plot all channels |
+| 2 | `02_detect_blinks.ipynb` | Detect eye-blink artifacts on frontal channels with a simple threshold |
+| 3 | `03_bandpower_and_alpha.ipynb` | Compute band powers (δ θ α β γ) with Welch's method, track alpha over time |
+| 4 | `04_export_features_for_ml.ipynb` | Extract windowed features and export a tidy CSV for scikit-learn |
+
+```bash
+cd notebooks
+pip install -r requirements.txt
+pieeg-server --mock        # no hardware needed
+jupyter lab
+```
+
 ## Data Format
 
 Each WebSocket message is a JSON frame:
