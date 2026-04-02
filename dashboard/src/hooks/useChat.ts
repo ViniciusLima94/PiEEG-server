@@ -168,35 +168,59 @@ export function useChat(eegData: EEGData, videoData?: VideoContextData): UseChat
         return;
       }
 
-      // ── Streaming fetch to any OpenAI-compatible endpoint ─────────
+      // ── Streaming fetch ──────────────────────────────────────────
       const controller = new AbortController();
       abortRef.current = controller;
       setStreaming(true);
 
-      const apiMessages: ChatMessage[] = [
-        { role: "system", content: `${SYSTEM_PROMPT}\n\n${fullCtx}` },
-        // Include recent conversation for context (last 20 messages)
+      const isAnthropic = config.endpoint.includes("anthropic.com");
+
+      const conversationHistory: ChatMessage[] = [
         ...messages.slice(-20),
         userMsg,
       ];
 
       (async () => {
         try {
-          const headers: Record<string, string> = {
-            "Content-Type": "application/json",
-          };
-          if (config.apiKey) {
-            headers["Authorization"] = `Bearer ${config.apiKey}`;
+          let headers: Record<string, string>;
+          let body: string;
+
+          if (isAnthropic) {
+            // ── Anthropic Messages API ──────────────────────────────
+            headers = {
+              "Content-Type": "application/json",
+              "x-api-key": config.apiKey,
+              "anthropic-version": "2023-06-01",
+              "anthropic-dangerous-direct-browser-access": "true",
+            };
+            body = JSON.stringify({
+              model: config.model,
+              max_tokens: 4096,
+              system: `${SYSTEM_PROMPT}\n\n${fullCtx}`,
+              messages: conversationHistory.filter((m) => m.role !== "system"),
+              stream: true,
+            });
+          } else {
+            // ── OpenAI-compatible endpoint ──────────────────────────
+            headers = { "Content-Type": "application/json" };
+            if (config.apiKey) {
+              headers["Authorization"] = `Bearer ${config.apiKey}`;
+            }
+            const apiMessages: ChatMessage[] = [
+              { role: "system", content: `${SYSTEM_PROMPT}\n\n${fullCtx}` },
+              ...conversationHistory,
+            ];
+            body = JSON.stringify({
+              model: config.model,
+              messages: apiMessages,
+              stream: true,
+            });
           }
 
           const res = await fetch(config.endpoint, {
             method: "POST",
             headers,
-            body: JSON.stringify({
-              model: config.model,
-              messages: apiMessages,
-              stream: true,
-            }),
+            body,
             signal: controller.signal,
           });
 
@@ -231,7 +255,11 @@ export function useChat(eegData: EEGData, videoData?: VideoContextData): UseChat
 
               try {
                 const chunk = JSON.parse(payload);
-                const delta = chunk.choices?.[0]?.delta?.content;
+                // OpenAI format: choices[0].delta.content
+                // Anthropic format: type "content_block_delta", delta.text
+                const delta =
+                  chunk.choices?.[0]?.delta?.content ??
+                  (chunk.type === "content_block_delta" ? chunk.delta?.text : undefined);
                 if (delta) {
                   assistantText += delta;
                   const text = assistantText; // capture for closure
