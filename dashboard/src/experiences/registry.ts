@@ -39,6 +39,9 @@ export interface ExperienceEntry {
 import { lazy } from "react";
 
 const XRWaveViewExperience = lazy(() => import("../components/XRWaveView"));
+const BlinkBrowserExperience = lazy(
+  () => import("./blink-scroll/BlinkBrowser"),
+);
 
 export const EXPERIENCES: ExperienceEntry[] = [
   {
@@ -51,6 +54,16 @@ export const EXPERIENCES: ExperienceEntry[] = [
     component: XRWaveViewExperience,
     vr: true,
     handTracking: true,
+    author: "PiEEG community",
+  },
+  {
+    id: "blink-browser",
+    name: "Blink Browser",
+    description:
+      "Scroll through articles and web pages using eye blinks. Includes per-user calibration that adapts to your blink strength.",
+    tag: "BCI",
+    gradient: ["#0070f3", "#00c853"],
+    component: BlinkBrowserExperience,
     author: "PiEEG community",
   },
 ];
