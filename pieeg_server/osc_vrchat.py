@@ -29,7 +29,7 @@ logger = logging.getLogger("pieeg.osc")
 # ── constants ─────────────────────────────────────────────────────────────
 
 SAMPLE_RATE = 250  # Hz (from acquisition.py)
-FFT_SIZE = 256
+FFT_SIZE = 512
 _HANNING: np.ndarray = np.hanning(FFT_SIZE)
 _FREQS: np.ndarray = np.fft.rfftfreq(FFT_SIZE, d=1.0 / SAMPLE_RATE)
 

@@ -37,7 +37,7 @@ const DEFAULT_CONFIG = {
   parameter_prefix: "EEG_",
   normalize: true,
   typing_indicator: true,
-  interval: 0.25,
+  interval: 1.5,
 };
 
 type OSCConfig = typeof DEFAULT_CONFIG;
