@@ -272,7 +272,7 @@ export default function VRChatOSC({ eegData, onExit, sendCommand }: ExperiencePr
     : pending === "stop"
     ? "Stopping…"
     : isRunning
-    ? `Active — ${config.host}:${config.port} — ${status.send_count ?? 0} packets sent`
+    ? `Active — ${config.host}:${config.port}`
     : "Stopped";
 
   // ── Band power display values ─────────────────────────────────────────
