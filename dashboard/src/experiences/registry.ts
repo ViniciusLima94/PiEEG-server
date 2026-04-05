@@ -15,6 +15,8 @@ export interface ExperienceProps {
   eegData: EEGData;
   yScale: number;
   onExit: () => void;
+  /** Optional: send a command to the pieeg-server WebSocket. */
+  sendCommand?: (cmd: Record<string, unknown>) => void;
 }
 
 export interface ExperienceEntry {
@@ -42,6 +44,15 @@ const XRWaveViewExperience = lazy(() => import("../components/XRWaveView"));
 const BlinkBrowserExperience = lazy(
   () => import("./blink-scroll/BlinkBrowser"),
 );
+const NeuralSonificationExperience = lazy(
+  () => import("./neural-sonification/NeuralSonification"),
+);
+const VRChatOSCExperience = lazy(
+  () => import("./vrchat-osc/VRChatOSC"),
+);
+const SpoonBendExperience = lazy(
+  () => import("./spoon-bend/SpoonBend"),
+);
 
 export const EXPERIENCES: ExperienceEntry[] = [
   {
@@ -64,6 +75,36 @@ export const EXPERIENCES: ExperienceEntry[] = [
     tag: "BCI",
     gradient: ["#0070f3", "#00c853"],
     component: BlinkBrowserExperience,
+    author: "PiEEG community",
+  },
+  {
+    id: "neural-sonification",
+    name: "Neural Sonification",
+    description:
+      "Turn your brainwaves into live music — Delta drives a deep drone, Theta shapes an FM pad, Alpha opens a melodic lead, Beta adds bright harmonics, and Gamma sparkles with shimmer. Full DJ controls for scale, key, reverb, and delay.",
+    tag: "Audio",
+    gradient: ["#f59e0b", "#ef4444"],
+    component: NeuralSonificationExperience,
+    author: "PiEEG community",
+  },
+  {
+    id: "vrchat-osc",
+    name: "VRChat OSC Bridge",
+    description:
+      "Stream live EEG band powers into VRChat via OSC UDP. Show your mental state in the chatbox bubble above your avatar's head, or drive avatar expressions and animations with normalised band-power float parameters.",
+    tag: "VRChat",
+    gradient: ["#1565c0", "#6a1b9a"],
+    component: VRChatOSCExperience,
+    author: "PiEEG community",
+  },
+  {
+    id: "spoon-bend",
+    name: "Spoon Bend",
+    description:
+      "Channel your focus to bend a virtual spoon — Matrix style. Beta and Gamma brainwaves drive the bend while digital rain cascades around you. Includes baseline calibration for personalised sensitivity.",
+    tag: "Focus",
+    gradient: ["#059669", "#0a0a0a"],
+    component: SpoonBendExperience,
     author: "PiEEG community",
   },
 ];
