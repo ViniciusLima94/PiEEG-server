@@ -46,8 +46,10 @@ export function useNeuralAudio(eegData: EEGData) {
 
       let validCount = 0;
       for (let ch = 0; ch < numChannels; ch++) {
+        const buf = buffers.current[ch];
+        if (!buf) continue;
         const result = fft.analyseRing(
-          buffers.current[ch],
+          buf,
           writeIndex.current,
           samplesInBuffer.current,
         );
