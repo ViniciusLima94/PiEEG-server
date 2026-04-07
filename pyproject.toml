@@ -37,6 +37,9 @@ dependencies = [
 rpi = [
     "spidev>=3.6",
 ]
+lsl = [
+    "pylsl>=1.16",
+]
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",

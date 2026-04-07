@@ -228,6 +228,14 @@ def parse_args():
         "--osc-interval", type=float, default=0.25, metavar="SEC",
         help="Seconds between OSC sends (default: 0.25 = 4 Hz)",
     )
+    p.add_argument(
+        "--lsl", action="store_true",
+        help="Enable Lab Streaming Layer outlet on startup (pushes EEG samples via LSL)",
+    )
+    p.add_argument(
+        "--lsl-name", default="PiEEG", metavar="NAME",
+        help="LSL stream name (default: PiEEG)",
+    )
     return p.parse_args()
 
 
@@ -389,6 +397,13 @@ def main():
             "VRChat OSC bridge configured: %s:%d  mode=%s  interval=%.2fs",
             args.osc_host, args.osc_port, args.osc_mode, args.osc_interval,
         )
+
+    # --- LSL outlet (optional, auto-starts with --lsl) ---
+    if getattr(args, 'lsl', False):
+        from .lsl import LSLConfig
+        lsl_cfg = LSLConfig(stream_name=args.lsl_name)
+        server.enable_lsl(lsl_cfg)
+        logger.info("LSL outlet configured: stream=%s", args.lsl_name)
 
     # --- Dashboard ---
     dashboard = None

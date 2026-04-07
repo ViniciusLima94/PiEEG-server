@@ -1008,6 +1008,21 @@ body {
   color: #c4b5fd;
 }
 
+/* ── LSL button ──────────────────────────────────────────────────────── */
+.btn-lsl {
+  border-color: rgba(6, 182, 212, 0.3);
+  color: #67e8f9;
+}
+.btn-lsl:hover {
+  background: rgba(6, 182, 212, 0.08);
+  border-color: rgba(6, 182, 212, 0.5);
+}
+.btn-lsl.active {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: rgba(6, 182, 212, 0.6);
+  color: #22d3ee;
+}
+
 .xr-overlay {
   position: fixed;
   inset: 0;
