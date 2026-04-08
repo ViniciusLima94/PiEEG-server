@@ -81,6 +81,7 @@ export default function App() {
       if (s) setLslRunning(!!s.running);
     };
     (window as unknown as Record<string, unknown>).__lslHandler = handler;
+    eeg.sendCommand({ cmd: "lsl_status" });
     return () => {
       delete (window as unknown as Record<string, unknown>).__lslHandler;
     };

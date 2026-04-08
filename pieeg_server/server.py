@@ -460,7 +460,13 @@ class PiEEGServer:
             self._lsl_bridge.stop()
             try:
                 await asyncio.wait_for(self._lsl_task, timeout=2.0)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
+            except asyncio.TimeoutError:
+                self._lsl_task.cancel()
+                try:
+                    await self._lsl_task
+                except asyncio.CancelledError:
+                    pass
+            except asyncio.CancelledError:
                 pass
 
         self._lsl_task = asyncio.create_task(self._lsl_bridge.run())
@@ -474,7 +480,13 @@ class PiEEGServer:
             self._lsl_bridge.stop()
             try:
                 await asyncio.wait_for(self._lsl_task, timeout=2.0)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
+            except asyncio.TimeoutError:
+                self._lsl_task.cancel()
+                try:
+                    await self._lsl_task
+                except asyncio.CancelledError:
+                    pass
+            except asyncio.CancelledError:
                 pass
             logger.info("LSL outlet stopped via WebSocket command")
         await self._broadcast_lsl_status()

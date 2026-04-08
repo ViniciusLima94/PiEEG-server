@@ -80,7 +80,12 @@ class LSLBridge:
 
         try:
             while self._running:
-                frame = await queue.get()
+                try:
+                    frame = await asyncio.wait_for(queue.get(), timeout=0.5)
+                except asyncio.TimeoutError:
+                    continue
+                if not self._running:
+                    break
                 if self._outlet is not None:
                     self._outlet.push_sample(frame["channels"], frame["t"])
                     self._sample_count += 1
