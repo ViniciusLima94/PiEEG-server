@@ -176,6 +176,12 @@ export function useEEG(timeWindowSec = 4): UseEEGReturn {
           if (typeof handler === "function") handler(msg);
         }
 
+        // Forward LSL status to handler
+        if ("lsl_status" in msg) {
+          const handler = (window as unknown as Record<string, unknown>).__lslHandler;
+          if (typeof handler === "function") handler(msg);
+        }
+
         if ("status" in msg) {
           // Welcome message — read channel count from server
           const serverCh = (msg as Record<string, unknown>).channels;

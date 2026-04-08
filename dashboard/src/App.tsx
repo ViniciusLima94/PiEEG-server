@@ -72,6 +72,25 @@ export default function App() {
 
   const webhooks = useWebhooks(webhooksEnabled, eeg.data, eeg.sendCommand);
 
+  // ── LSL streaming ───────────────────────────────────────────────────
+  const [lslRunning, setLslRunning] = useState(false);
+
+  useEffect(() => {
+    const handler = (msg: Record<string, unknown>) => {
+      const s = msg.lsl_status as { running?: boolean } | undefined;
+      if (s) setLslRunning(!!s.running);
+    };
+    (window as unknown as Record<string, unknown>).__lslHandler = handler;
+    eeg.sendCommand({ cmd: "lsl_status" });
+    return () => {
+      delete (window as unknown as Record<string, unknown>).__lslHandler;
+    };
+  }, []);
+
+  const toggleLSL = useCallback(() => {
+    eeg.sendCommand({ cmd: lslRunning ? "lsl_stop" : "lsl_start" });
+  }, [lslRunning, eeg.sendCommand]);
+
   // ── Guided presets ──────────────────────────────────────────────────
   const [activePreset, setActivePreset] = useState<GuidedPreset | null>(null);
   const [presetStep, setPresetStep] = useState(0);
@@ -379,6 +398,13 @@ export default function App() {
           onClick={() => setShowWebhooks((v) => !v)}
         >
           Webhooks{webhooksEnabled && <span className="wh-active-dot" />}
+        </button>
+        <button
+          className={`btn btn-lsl${lslRunning ? " active" : ""}`}
+          onClick={toggleLSL}
+          title="Lab Streaming Layer — stream EEG to external apps"
+        >
+          LSL {lslRunning ? "ON" : "OFF"}
         </button>
         <button
           className="btn btn-xr"
