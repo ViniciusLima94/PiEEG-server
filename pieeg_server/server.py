@@ -22,6 +22,8 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 import websockets
+from websockets.datastructures import Headers
+from websockets.http11 import Response as HTTPResponse
 
 from .acquisition import AcquisitionLoop
 from .auth import AuthManager
@@ -29,6 +31,7 @@ from .filters import MultichannelFilter
 from .recorder import Recorder
 from .webhooks import WebhookStore
 from .osc_vrchat import VRChatOSCBridge, OSCConfig
+from .lsl import LSLBridge, LSLConfig
 
 logger = logging.getLogger("pieeg.server")
 
@@ -58,6 +61,8 @@ class PiEEGServer:
         self._webhooks: WebhookStore | None = None
         self._osc_bridge: VRChatOSCBridge | None = None
         self._osc_task: asyncio.Task | None = None
+        self._lsl_bridge: LSLBridge | None = None
+        self._lsl_task: asyncio.Task | None = None
 
     def enable_filter(self, lowcut: float = 1.0, highcut: float = 40.0):
         self._filter = MultichannelFilter(
@@ -66,6 +71,17 @@ class PiEEGServer:
 
     def disable_filter(self):
         self._filter = None
+
+    def enable_lsl(self, config: LSLConfig | None = None):
+        """Pre-configure the LSL bridge (start via dashboard or --lsl flag)."""
+        self._lsl_bridge = LSLBridge(self._acq, config)
+        logger.info("LSL bridge ready (start via dashboard or --lsl flag)")
+
+    async def _lsl_autostart(self):
+        """Start the LSL bridge immediately (used with --lsl CLI flag)."""
+        if self._lsl_bridge and not (self._lsl_task and not self._lsl_task.done()):
+            self._lsl_task = asyncio.create_task(self._lsl_bridge.run())
+            await self._broadcast_lsl_status()
 
     def enable_osc(self, config: OSCConfig | None = None):
         """Pre-configure the OSC bridge (does not start it; use osc_start command)."""
@@ -87,18 +103,26 @@ class PiEEGServer:
         logger.info("Webhooks enabled (%d rules loaded)",
                     len(self._webhooks.list_rules()))
 
+    async def _health_check(self, connection, request):
+        """Respond to HTTP health checks (e.g. Fly.io) without upgrading."""
+        if request.path == "/health":
+            return HTTPResponse(200, "OK", Headers(), b"ok\n")
+
     async def run(self):
         """Start the WebSocket server and the broadcast loop."""
         async with websockets.serve(
             self._handle_client, self._host, self._port,
             ping_interval=20, ping_timeout=10,
+            process_request=self._health_check,
         ):
             logger.info(
                 "PiEEG streaming on ws://%s:%d", self._host, self._port
             )
-            # Auto-start OSC bridge if pre-configured (via --osc CLI flag)
+            # Auto-start bridges if pre-configured (via CLI flags)
             if self._osc_bridge:
                 await self._osc_autostart()
+            if self._lsl_bridge:
+                await self._lsl_autostart()
             await self._broadcast_loop()
 
     async def _handle_client(self, ws: websockets.WebSocketServerProtocol):
@@ -123,6 +147,7 @@ class PiEEGServer:
             "sample_rate": 250,
             "channels": self._num_channels,
             "filter": self._filter is not None,
+            "lsl_status": self._lsl_bridge.status() if self._lsl_bridge else {"running": False},
         }
         welcome.update(self._get_record_status())
         await ws.send(json.dumps(welcome))
@@ -181,6 +206,13 @@ class PiEEGServer:
             await self._ws_osc_stop(ws)
         elif cmd == "osc_config":
             await self._ws_osc_config(ws, msg)
+        # ── LSL commands ───────────────────────────────────────────────────
+        elif cmd == "lsl_status":
+            await self._ws_lsl_status(ws)
+        elif cmd == "lsl_start":
+            await self._ws_lsl_start(ws, msg)
+        elif cmd == "lsl_stop":
+            await self._ws_lsl_stop(ws)
 
     async def _start_recording(self):
         """Start recording EEG data to a timestamped CSV file."""
@@ -398,6 +430,71 @@ class PiEEGServer:
         """Push current OSC status to all connected clients."""
         status = self._osc_bridge.status() if self._osc_bridge else {"running": False}
         payload = json.dumps({"osc_status": status})
+        stale = set()
+        for ws in list(self._clients):
+            try:
+                await ws.send(payload)
+            except websockets.ConnectionClosed:
+                stale.add(ws)
+        self._clients -= stale
+
+    # ── LSL WebSocket handlers ────────────────────────────────────────────
+
+    async def _ws_lsl_status(self, ws):
+        """Send current LSL bridge status to the requesting client."""
+        status = self._lsl_bridge.status() if self._lsl_bridge else {"running": False}
+        await ws.send(json.dumps({"lsl_status": status}))
+
+    async def _ws_lsl_start(self, ws, msg: dict):
+        """Start the LSL outlet."""
+        config_patch = msg.get("config", {})
+
+        if not self._lsl_bridge:
+            cfg = LSLConfig.from_dict(config_patch) if config_patch else LSLConfig()
+            self._lsl_bridge = LSLBridge(self._acq, cfg)
+        elif config_patch:
+            self._lsl_bridge.update_config(config_patch)
+
+        # Stop existing task if running
+        if self._lsl_task and not self._lsl_task.done():
+            self._lsl_bridge.stop()
+            try:
+                await asyncio.wait_for(self._lsl_task, timeout=2.0)
+            except asyncio.TimeoutError:
+                self._lsl_task.cancel()
+                try:
+                    await self._lsl_task
+                except asyncio.CancelledError:
+                    pass
+            except asyncio.CancelledError:
+                pass
+
+        self._lsl_task = asyncio.create_task(self._lsl_bridge.run())
+        await asyncio.sleep(0)
+        logger.info("LSL outlet started via WebSocket command")
+        await self._broadcast_lsl_status()
+
+    async def _ws_lsl_stop(self, ws):
+        """Stop the LSL outlet."""
+        if self._lsl_bridge and self._lsl_task and not self._lsl_task.done():
+            self._lsl_bridge.stop()
+            try:
+                await asyncio.wait_for(self._lsl_task, timeout=2.0)
+            except asyncio.TimeoutError:
+                self._lsl_task.cancel()
+                try:
+                    await self._lsl_task
+                except asyncio.CancelledError:
+                    pass
+            except asyncio.CancelledError:
+                pass
+            logger.info("LSL outlet stopped via WebSocket command")
+        await self._broadcast_lsl_status()
+
+    async def _broadcast_lsl_status(self):
+        """Push current LSL status to all connected clients."""
+        status = self._lsl_bridge.status() if self._lsl_bridge else {"running": False}
+        payload = json.dumps({"lsl_status": status})
         stale = set()
         for ws in list(self._clients):
             try:

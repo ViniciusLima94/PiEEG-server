@@ -2,11 +2,14 @@ import { useState } from "react";
 import {
   TRIGGER_TYPES,
   BANDS,
+  SERVICE_TYPES,
   type TriggerType,
+  type ServiceType,
   type WebhookRule,
   type WebhookEvent,
 } from "../types";
 import type { UseWebhooksReturn } from "../hooks/useWebhooks";
+import { WEBHOOK_RECIPES, RECIPE_CATEGORIES, type WebhookRecipe } from "../lib/webhookRecipes";
 
 // ── trigger labels / descriptions ─────────────────────────────────────────
 
@@ -51,7 +54,8 @@ export default function WebhookPanel({
 }: Props) {
   const { rules, events, saveRule, deleteRule, testRule, toggleRule } = webhooks;
   const [editing, setEditing] = useState<WebhookRule | null>(null);
-  const [tab, setTab] = useState<"rules" | "log">("rules");
+  const [tab, setTab] = useState<"rules" | "log" | "recipes">("rules");
+  const [recipeCat, setRecipeCat] = useState<string>("all");
 
   if (!open) return null;
 
@@ -84,6 +88,9 @@ export default function WebhookPanel({
       <div className="webhook-tabs">
         <button className={`wh-tab${tab === "rules" ? " active" : ""}`} onClick={() => setTab("rules")}>
           Rules ({rules.length}) <Hint text="Trigger rules that fire webhooks when EEG conditions are met" />
+        </button>
+        <button className={`wh-tab${tab === "recipes" ? " active" : ""}`} onClick={() => setTab("recipes")}>
+          Recipes <Hint text="Pre-built templates for IFTTT, Zapier, and more — one-click import" />
         </button>
         <button className={`wh-tab${tab === "log" ? " active" : ""}`} onClick={() => setTab("log")}>
           Log ({events.length}) <Hint text="History of recently fired webhook events" />
@@ -126,6 +133,9 @@ export default function WebhookPanel({
                   </div>
                   <div className="wh-rule-detail">
                     <span className="wh-trigger">{TRIGGER_LABELS[r.trigger_type]}</span>
+                    {r.service && r.service !== "generic" && (
+                      <span className={`wh-badge wh-service-${r.service}`}>{r.service.toUpperCase()}</span>
+                    )}
                     {r.params.band ? <span className="wh-badge">{String(r.params.band)}</span> : null}
                     {r.params.threshold !== undefined && (
                       <span className="wh-badge">≥ {String(r.params.threshold)}</span>
@@ -140,6 +150,36 @@ export default function WebhookPanel({
               ))}
             </>
           )}
+        </div>
+      )}
+
+      {tab === "recipes" && (
+        <div className="wh-recipes">
+          <div className="wh-recipe-cats">
+            {RECIPE_CATEGORIES.map((c) => (
+              <button
+                key={c.id}
+                className={`wh-recipe-cat${recipeCat === c.id ? " active" : ""}`}
+                onClick={() => setRecipeCat(c.id)}
+              >
+                {c.icon} {c.label}
+              </button>
+            ))}
+          </div>
+          <div className="wh-recipe-list">
+            {WEBHOOK_RECIPES
+              .filter((r) => recipeCat === "all" || r.category === recipeCat)
+              .map((recipe) => (
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  onUse={() => {
+                    setEditing(recipeToRule(recipe));
+                    setTab("rules");
+                  }}
+                />
+              ))}
+          </div>
         </div>
       )}
 
@@ -180,7 +220,63 @@ function newRule(): WebhookRule {
     cooldown: 10,
     last_fired: 0,
     fire_count: 0,
+    service: "generic",
   };
+}
+
+// ── Service labels & help ─────────────────────────────────────────────────
+
+const SERVICE_LABELS: Record<ServiceType, string> = {
+  generic: "Generic Webhook",
+  ifttt: "IFTTT",
+  zapier: "Zapier",
+};
+
+const SERVICE_HELP: Record<ServiceType, string> = {
+  generic: "Send a JSON POST to any URL. Full payload with event, value, threshold, channel, timestamp.",
+  ifttt: "Uses IFTTT Webhooks (Maker) service. Sends value1 (measured value), value2 (trigger type), value3 (full JSON).",
+  zapier: "Uses Zapier Catch Hook. Sends flat JSON with all fields for easy Zap mapping.",
+};
+
+// ── Recipe helpers ────────────────────────────────────────────────────────
+
+function recipeToRule(recipe: WebhookRecipe): WebhookRule {
+  return {
+    id: "",
+    name: recipe.name,
+    enabled: true,
+    trigger_type: recipe.trigger_type,
+    params: { ...recipe.params },
+    url: "",
+    method: "POST",
+    headers: {},
+    body_template: "",
+    cooldown: recipe.cooldown,
+    last_fired: 0,
+    fire_count: 0,
+    service: recipe.service,
+  };
+}
+
+function RecipeCard({ recipe, onUse }: { recipe: WebhookRecipe; onUse: () => void }) {
+  return (
+    <div className="wh-recipe-card">
+      <div className="wh-recipe-icon">{recipe.icon}</div>
+      <div className="wh-recipe-body">
+        <div className="wh-recipe-header">
+          <span className="wh-recipe-name">{recipe.name}</span>
+          <span className={`wh-badge wh-service-${recipe.service}`}>
+            {recipe.service === "generic" ? "Webhook" : recipe.service.toUpperCase()}
+          </span>
+        </div>
+        <p className="wh-recipe-desc">{recipe.description}</p>
+        <p className="wh-recipe-action">💡 {recipe.actionHint}</p>
+      </div>
+      <button className="btn btn-sm wh-recipe-use" onClick={onUse} title="Use this recipe">
+        Use
+      </button>
+    </div>
+  );
 }
 
 // ── Rule editor form ──────────────────────────────────────────────────────
@@ -197,6 +293,7 @@ function RuleEditor({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(rule.name);
+  const [service, setService] = useState<ServiceType>(rule.service || "generic");
   const [triggerType, setTriggerType] = useState<TriggerType>(rule.trigger_type);
   const [band, setBand] = useState(String(rule.params.band || "alpha"));
   const [numerator, setNumerator] = useState(String(rule.params.numerator || "alpha"));
@@ -207,6 +304,27 @@ function RuleEditor({
   const [method, setMethod] = useState(rule.method || "POST");
   const [authHeader, setAuthHeader] = useState(rule.headers?.Authorization || "");
   const [cooldown, setCooldown] = useState(String(rule.cooldown));
+
+  // IFTTT-specific fields
+  const [iftttEvent, setIftttEvent] = useState(() => {
+    if (rule.service === "ifttt" && rule.url) {
+      const m = rule.url.match(/\/trigger\/([^/]+)\/json\/with\/key\//);
+      return m ? m[1] : "pieeg_trigger";
+    }
+    return "pieeg_trigger";
+  });
+  const [iftttKey, setIftttKey] = useState(() => {
+    if (rule.service === "ifttt" && rule.url) {
+      const m = rule.url.match(/\/with\/key\/(.+)$/);
+      return m ? m[1] : "";
+    }
+    return "";
+  });
+
+  function buildIftttUrl(): string {
+    if (!iftttKey) return "";
+    return `https://maker.ifttt.com/trigger/${encodeURIComponent(iftttEvent || "pieeg_trigger")}/json/with/key/${iftttKey}`;
+  }
 
   function handleSave() {
     const params: Record<string, unknown> = { threshold: parseFloat(threshold) || 0 };
@@ -222,21 +340,40 @@ function RuleEditor({
     const headers: Record<string, string> = {};
     if (authHeader.trim()) headers.Authorization = authHeader.trim();
 
+    const finalUrl = service === "ifttt" ? buildIftttUrl() : url;
+
     onSave({
       ...(rule.id ? { id: rule.id } : {}),
       name: name || `${TRIGGER_LABELS[triggerType]}`,
       trigger_type: triggerType,
       params,
-      url,
-      method,
+      url: finalUrl,
+      method: service === "ifttt" ? "POST" : method,
       headers,
       cooldown: parseFloat(cooldown) || 10,
+      service,
     });
   }
 
   return (
     <div className="wh-editor">
       <h3>{rule.id ? "Edit Rule" : "New Rule"}</h3>
+
+      {/* ── Service selector ── */}
+      <label>Service <Hint text="Choose a service preset. IFTTT and Zapier have optimised payload formats and guided URL setup." /></label>
+      <div className="wh-service-picker">
+        {SERVICE_TYPES.map((s) => (
+          <button
+            key={s}
+            className={`wh-service-btn${service === s ? " active" : ""}${s !== "generic" ? ` wh-service-${s}` : ""}`}
+            onClick={() => setService(s)}
+            type="button"
+          >
+            {SERVICE_LABELS[s]}
+          </button>
+        ))}
+      </div>
+      <p className="wh-service-help">{SERVICE_HELP[service]}</p>
 
       <label>Name <Hint text="A friendly name to identify this rule in the list and logs" /></label>
       <input value={name} onChange={(e) => setName(e.target.value)} placeholder="My webhook" />
@@ -290,27 +427,93 @@ function RuleEditor({
         onChange={(e) => setThreshold(e.target.value)}
       />
 
-      <label>Webhook URL <Hint text="The HTTP endpoint that will receive the webhook request when triggered" /></label>
-      <input
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        placeholder="https://example.com/webhook"
-      />
+      {/* ── Service-specific URL section ── */}
+      {service === "ifttt" ? (
+        <div className="wh-ifttt-setup">
+          <label>IFTTT Event Name <Hint text="The event name you chose in your IFTTT Webhooks applet (e.g. 'pieeg_trigger')" /></label>
+          <input
+            value={iftttEvent}
+            onChange={(e) => setIftttEvent(e.target.value)}
+            placeholder="pieeg_trigger"
+          />
+          <label>IFTTT Webhooks Key <Hint text="Find at: ifttt.com/services/maker_webhooks → Documentation. It's the long string after /use/" /></label>
+          <input
+            value={iftttKey}
+            onChange={(e) => setIftttKey(e.target.value)}
+            placeholder="your-ifttt-key"
+            className="wh-key-input"
+          />
+          {iftttKey && (
+            <div className="wh-url-preview">
+              <span className="wh-url-preview-label">URL:</span>
+              <code>{buildIftttUrl()}</code>
+            </div>
+          )}
+          <div className="wh-setup-steps">
+            <strong>Setup:</strong>
+            <ol>
+              <li>Go to <strong>ifttt.com/create</strong></li>
+              <li>"If This" → <strong>Webhooks</strong> → "Receive a web request with a JSON payload"</li>
+              <li>Event name: <code>{iftttEvent || "pieeg_trigger"}</code></li>
+              <li>"Then That" → choose your action (email, notification, smart home, etc.)</li>
+              <li>Use <code>{"{{Value1}}"}</code> for the measured value, <code>{"{{Value2}}"}</code> for trigger type</li>
+              <li>Get your key at <strong>ifttt.com/services/maker_webhooks</strong> → Documentation</li>
+            </ol>
+          </div>
+        </div>
+      ) : service === "zapier" ? (
+        <div className="wh-zapier-setup">
+          <label>Zapier Webhook URL <Hint text="Create a Zap with 'Webhooks by Zapier' trigger (Catch Hook), then paste the URL here" /></label>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://hooks.zapier.com/hooks/catch/..."
+          />
+          <div className="wh-setup-steps">
+            <strong>Setup:</strong>
+            <ol>
+              <li>Go to <strong>zapier.com/app/zaps</strong> → Create Zap</li>
+              <li>Trigger: <strong>Webhooks by Zapier</strong> → "Catch Hook"</li>
+              <li>Copy the webhook URL and paste above</li>
+              <li>Click <strong>Test</strong> on the rule card to send sample data</li>
+              <li>Go back to Zapier, click "Test trigger" to see your EEG data fields</li>
+              <li>Add your action (Google Sheets, Slack, email, etc.)</li>
+            </ol>
+            <p className="wh-setup-hint">
+              Fields available in Zapier: <code>event</code>, <code>value</code>, <code>threshold</code>,
+              <code>channel</code>, <code>band</code>, <code>timestamp</code>, <code>source</code>
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <label>Webhook URL <Hint text="The HTTP endpoint that will receive the webhook request when triggered" /></label>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://example.com/webhook"
+          />
+        </>
+      )}
 
-      <label>Method <Hint text="HTTP method to use for the webhook request" /></label>
-      <select value={method} onChange={(e) => setMethod(e.target.value)}>
-        <option value="POST">POST</option>
-        <option value="PUT">PUT</option>
-        <option value="PATCH">PATCH</option>
-        <option value="GET">GET</option>
-      </select>
+      {service === "generic" && (
+        <>
+          <label>Method <Hint text="HTTP method to use for the webhook request" /></label>
+          <select value={method} onChange={(e) => setMethod(e.target.value)}>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="PATCH">PATCH</option>
+            <option value="GET">GET</option>
+          </select>
 
-      <label>Authorization header <Hint text="Optional auth token sent with the request, e.g. 'Bearer abc123'" /></label>
-      <input
-        value={authHeader}
-        onChange={(e) => setAuthHeader(e.target.value)}
-        placeholder="Bearer your-token-here"
-      />
+          <label>Authorization header <Hint text="Optional auth token sent with the request, e.g. 'Bearer abc123'" /></label>
+          <input
+            value={authHeader}
+            onChange={(e) => setAuthHeader(e.target.value)}
+            placeholder="Bearer your-token-here"
+          />
+        </>
+      )}
 
       <label>Cooldown (seconds) <Hint text="Minimum time between two consecutive fires of this rule, to avoid spamming" /></label>
       <input
