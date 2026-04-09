@@ -62,6 +62,14 @@ export default function App() {
   const eeg = useEEG(timeWindow);
   const numCh = eeg.numChannels;
 
+  const [serverInfo, setServerInfo] = useState<{ version: string; branch: string | null } | null>(null);
+  useEffect(() => {
+    fetch("/api/info")
+      .then((r) => r.json())
+      .then((d) => { if (d.version) setServerInfo(d); })
+      .catch(() => {});
+  }, []);
+
   const toggleWebhooksEnabled = useCallback(() => {
     setWebhooksEnabled((prev) => {
       const next = !prev;
@@ -319,6 +327,11 @@ export default function App() {
           Pi<span>EEG</span>
           <small>{numCh}ch Dashboard</small>
           {isDemo && <span className="demo-badge">DEMO</span>}
+          {serverInfo && (
+            <span className="version-badge">
+              v{serverInfo.version}{serverInfo.branch ? ` · ${serverInfo.branch}` : ""}
+            </span>
+          )}
         </h1>
         <div className="status-bar">
           <span>
