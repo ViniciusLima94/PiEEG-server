@@ -532,6 +532,15 @@ export default function App() {
             }}
           />
         </div>
+        {eeg.mock && (
+          <button
+            className="btn btn-inject-spike"
+            onClick={() => eeg.sendCommand({ cmd: "inject_spike", count: 1 })}
+            title="Inject a synthetic spike into the mock data stream (testing only)"
+          >
+            ⚡ Inject Spike
+          </button>
+        )}
       </div>
 
       {/* Channel selector */}

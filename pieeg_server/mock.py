@@ -56,13 +56,26 @@ class MockHardware:
     def open(self):
         self._start_time = time.time()
         self._sample_index = 0
+        self._pending_spikes = 0
 
     def close(self):
         pass
 
+    def inject_spike(self, count: int = 1):
+        """Queue synthetic spike(s) into upcoming samples."""
+        self._pending_spikes += max(1, int(count))
+
     def read_sample(self):
         t = self._sample_index / SAMPLE_RATE
         self._sample_index += 1
+
+        # Inject a large spike across all channels if requested
+        if self._pending_spikes > 0:
+            self._pending_spikes -= 1
+            amplitude = random.uniform(800, 1500)
+            sign = random.choice([-1, 1])
+            return [round(sign * amplitude + random.gauss(0, 5), 2)
+                    for _ in range(self._num_channels)]
 
         channels = []
         for ch in range(self._num_channels):

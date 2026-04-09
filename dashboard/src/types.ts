@@ -167,6 +167,7 @@ export interface SpikeConfig {
 
 export interface UseEEGReturn {
   connected: boolean;
+  mock: boolean;
   numChannels: number;
   sampleCount: number;
   hz: number;
