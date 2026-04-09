@@ -181,8 +181,21 @@ class TestSpikeDetection:
         assert hw._is_valid_frame(far_raw) is True
         assert hw._consecutive_rejects == 0
 
+    def test_threshold_minus_one_disables_filter(self):
+        """Setting threshold to -1 disables spike rejection entirely."""
+        hw = self._make_hw()
+        hw.spike_threshold = -1
+        assert hw.spike_threshold == -1
+        # Even a huge jump should be accepted
+        assert hw._is_valid_frame(self._raw_with_last_3(0, 0, 0)) is True
+        val = 8_000_000  # massive jump
+        b24 = (val >> 16) & 0xFF
+        b25 = (val >> 8) & 0xFF
+        b26 = val & 0xFF
+        assert hw._is_valid_frame(self._raw_with_last_3(b24, b25, b26)) is True
+
     def test_threshold_property_clamps_minimum(self):
-        """spike_threshold property enforces min=0."""
+        """spike_threshold property enforces min=0 (except -1)."""
         hw = self._make_hw()
         hw.spike_threshold = -100
         assert hw.spike_threshold == 0

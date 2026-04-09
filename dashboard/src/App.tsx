@@ -53,6 +53,8 @@ export default function App() {
   const [yScale, setYScale] = useState(100);
   const [spikeThreshold, setSpikeThreshold] = useState<number | string>(5000);
   const [spikeResetAfter, setSpikeResetAfter] = useState<number | string>(50);
+  const lastSpikeThreshold = useRef(5000);
+  const spikeEnabled = Number(spikeThreshold) !== -1;
   const [expandedCh, setExpandedCh] = useState<number | null>(null);
   const [showSpectrogram, setShowSpectrogram] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -76,6 +78,7 @@ export default function App() {
   // Sync local spike inputs from server
   useEffect(() => {
     setSpikeThreshold(eeg.spikeConfig.threshold);
+    if (eeg.spikeConfig.threshold > 0) lastSpikeThreshold.current = eeg.spikeConfig.threshold;
     setSpikeResetAfter(eeg.spikeConfig.reset_after);
   }, [eeg.spikeConfig.threshold, eeg.spikeConfig.reset_after]);
 
@@ -528,20 +531,40 @@ export default function App() {
           </select>
         </div>
         <div className="sep" />
+        <button
+          className={`btn${spikeEnabled ? " active" : ""}`}
+          onClick={() => {
+            if (spikeEnabled) {
+              lastSpikeThreshold.current = Math.max(1, Number(spikeThreshold));
+              setSpikeThreshold(-1);
+              eeg.sendCommand({ cmd: "spike_config", config: { threshold: -1 } });
+            } else {
+              const restore = lastSpikeThreshold.current;
+              setSpikeThreshold(restore);
+              eeg.sendCommand({ cmd: "spike_config", config: { threshold: restore } });
+            }
+          }}
+        >
+          Spike: {spikeEnabled ? "ON" : "OFF"}
+        </button>
         <div className="control-group">
           <label>Spike</label>
           <input
             type="number"
-            value={spikeThreshold}
-            min={100}
+            value={spikeEnabled ? spikeThreshold : lastSpikeThreshold.current}
+            min={1}
             max={100000}
             step={500}
+            disabled={!spikeEnabled}
             style={{ width: "5.5em" }}
             title="Max allowed jump in raw ADC value between consecutive samples"
             onChange={(e: ChangeEvent<HTMLInputElement>) => {
               setSpikeThreshold(e.target.value);
               const v = parseInt(e.target.value);
-              if (v > 0) eeg.sendCommand({ cmd: "spike_config", config: { threshold: v } });
+              if (v > 0) {
+                lastSpikeThreshold.current = v;
+                eeg.sendCommand({ cmd: "spike_config", config: { threshold: v } });
+              }
             }}
           />
         </div>
@@ -553,6 +576,7 @@ export default function App() {
             min={1}
             max={1000}
             step={5}
+            disabled={!spikeEnabled}
             style={{ width: "4em" }}
             title="Re-sync baseline after this many consecutive rejected frames"
             onChange={(e: ChangeEvent<HTMLInputElement>) => {

@@ -130,7 +130,8 @@ class PiEEGHardware:
 
     @spike_threshold.setter
     def spike_threshold(self, value: int):
-        self._spike_threshold = max(0, int(value))
+        v = int(value)
+        self._spike_threshold = v if v == -1 else max(0, v)
 
     @property
     def spike_reset_after(self) -> int:
@@ -217,7 +218,12 @@ class PiEEGHardware:
         Checks the last 3 bytes (bytes 24-26) of the SPI read as a signed
         24-bit integer. If the jump from the previous valid value exceeds
         SPIKE_THRESHOLD, the frame is considered corrupted.
+
+        A threshold of -1 disables spike rejection entirely.
         """
+        if self._spike_threshold == -1:
+            return True
+
         combined = (raw[24] << 16) | (raw[25] << 8) | raw[26]
         if raw[24] & 0x80:
             combined -= 1 << 24
