@@ -16,9 +16,22 @@ import time
 NUM_CHANNELS = 16
 SAMPLE_RATE = 250
 
+# ADS1299 channel register addresses (mirrors hardware.py)
+CH1SET = 0x05
+CH2SET = 0x06
+CH3SET = 0x07
+CH4SET = 0x08
+CH5SET = 0x09
+CH6SET = 0x0A
+CH7SET = 0x0B
+CH8SET = 0x0C
+CH_REGS = (CH1SET, CH2SET, CH3SET, CH4SET, CH5SET, CH6SET, CH7SET, CH8SET)
+
 
 class MockHardware:
     """Drop-in replacement for PiEEGHardware that generates synthetic data."""
+
+    CH_REGS = CH_REGS
 
     def __init__(self, num_channels: int = NUM_CHANNELS):
         self._num_channels = num_channels
@@ -32,6 +45,10 @@ class MockHardware:
         # Spike config (mirrors PiEEGHardware interface)
         self._spike_threshold = 5000
         self._spike_reset_after = 50
+        # Register state (shadow copy)
+        self._register_state: dict[int, int] = {}
+        # Input mode: "normal" or "shorted"
+        self._input_mode = "normal"
 
     @property
     def num_channels(self) -> int:
@@ -77,6 +94,11 @@ class MockHardware:
             return [round(sign * amplitude + random.gauss(0, 5), 2)
                     for _ in range(self._num_channels)]
 
+        # Shorted-input mode: flat noise ±2 µV
+        if self._input_mode == "shorted":
+            return [round(random.gauss(0, 1.0), 2)
+                    for _ in range(self._num_channels)]
+
         channels = []
         for ch in range(self._num_channels):
             # Alpha oscillation (8-12 Hz)
@@ -102,3 +124,30 @@ class MockHardware:
 
     def __exit__(self, *exc):
         self.close()
+
+    # --- register configuration (mirrors PiEEGHardware) ---
+
+    def configure_registers(self, reg_map: dict[int, int]):
+        """Store shadow state and switch mock data mode if CHnSET changes."""
+        self._register_state.update(reg_map)
+        # Check if all channel regs are set to shorted (0x01)
+        ch_values = [self._register_state.get(r) for r in self.CH_REGS if r in self._register_state]
+        if ch_values and all(v == 0x01 for v in ch_values):
+            self._input_mode = "shorted"
+        elif ch_values and all(v == 0x00 for v in ch_values):
+            self._input_mode = "normal"
+
+    def set_input_short(self):
+        """Switch mock data to flat noise (±2 µV random)."""
+        reg_map = {reg: 0x01 for reg in self.CH_REGS}
+        self.configure_registers(reg_map)
+
+    def set_input_normal(self):
+        """Restore synthetic alpha+noise."""
+        reg_map = {reg: 0x00 for reg in self.CH_REGS}
+        self.configure_registers(reg_map)
+
+    @property
+    def register_state(self) -> dict[int, int]:
+        """Return a copy of the shadow register state."""
+        return dict(self._register_state)

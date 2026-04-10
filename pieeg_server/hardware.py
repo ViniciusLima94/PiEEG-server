@@ -103,6 +103,9 @@ _HANDLE_DATA_SIZE    = 64   # sizeof(struct gpiohandle_data)
 class PiEEGHardware:
     """Hardware abstraction for PiEEG shields (8 or 16 channels)."""
 
+    # Channel register addresses for convenience
+    CH_REGS = (CH1SET, CH2SET, CH3SET, CH4SET, CH5SET, CH6SET, CH7SET, CH8SET)
+
     def __init__(self, gpio_chip: str = "/dev/gpiochip4",
                  num_channels: int = 16):
         if num_channels not in (8, 16):
@@ -119,6 +122,7 @@ class PiEEGHardware:
         self._consecutive_rejects = 0
         self._spike_threshold = SPIKE_THRESHOLD
         self._spike_reset_after = SPIKE_RESET_AFTER
+        self._register_state: dict[int, int] = {}
 
     @property
     def num_channels(self) -> int:
@@ -261,6 +265,40 @@ class PiEEGHardware:
         on the next low transition.
         """
         return self._drdy_get() == 1
+
+    # --- register configuration ---
+
+    def configure_registers(self, reg_map: dict[int, int]):
+        """Write arbitrary registers with STOP → SDATAC → write → RDATAC → START.
+
+        Applies to both chips in 16-ch mode, chip 1 only in 8-ch mode.
+        Updates the shadow register state.
+        """
+        chips = [1, 2] if self._num_channels == 16 else [1]
+        for chip in chips:
+            self._send_command(chip, CMD_STOP)
+            self._send_command(chip, CMD_SDATAC)
+            for addr, value in reg_map.items():
+                self._write_register(chip, int(addr), int(value) & 0xFF)
+            self._send_command(chip, CMD_RDATAC)
+            self._send_command(chip, CMD_START)
+        self._register_state.update(reg_map)
+        logger.info("Registers configured: %s", {hex(k): hex(v) for k, v in reg_map.items()})
+
+    def set_input_short(self):
+        """Set all CHnSET registers to 0x01 (input shorted for noise test)."""
+        reg_map = {reg: 0x01 for reg in self.CH_REGS}
+        self.configure_registers(reg_map)
+
+    def set_input_normal(self):
+        """Set all CHnSET registers to 0x00 (normal electrode input)."""
+        reg_map = {reg: 0x00 for reg in self.CH_REGS}
+        self.configure_registers(reg_map)
+
+    @property
+    def register_state(self) -> dict[int, int]:
+        """Return a copy of the shadow register state."""
+        return dict(self._register_state)
 
     # --- GPIO helpers (direct Linux chardev ioctl) ---
 

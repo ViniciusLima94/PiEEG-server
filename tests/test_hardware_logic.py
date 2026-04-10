@@ -6,6 +6,7 @@ Only tests logic that doesn't require actual GPIO/SPI hardware:
 - Spike detection logic
 - SPI frame validation (status byte checking)
 - Register/command constants
+- Register configuration & shadow state
 """
 
 import pytest
@@ -15,6 +16,7 @@ from pieeg_server.hardware import (
     VREF_UV, SPIKE_THRESHOLD, SPIKE_RESET_AFTER,
     EXPECTED_STATUS, BYTES_PER_READ,
     CS_PIN, DRDY_PIN, SPI_SPEED_HZ,
+    CH1SET, CH2SET, CH3SET, CH4SET, CH5SET, CH6SET, CH7SET, CH8SET,
     PiEEGHardware,
 )
 
@@ -274,3 +276,136 @@ class TestADCDecoding:
         assert channels[0] != channels[1]
         assert channels[0] == round(VREF_UV * (1 / FULL_SCALE_PLUS_1), 2)
         assert channels[1] == round(VREF_UV * (2 / FULL_SCALE_PLUS_1), 2)
+
+
+class TestRegisterState:
+    """Test register shadow state tracking (no SPI required)."""
+
+    def _make_hw(self):
+        """Create a PiEEGHardware without initializing GPIO/SPI."""
+        hw = PiEEGHardware.__new__(PiEEGHardware)
+        hw._register_state = {}
+        hw._num_channels = 8
+        hw._last_valid_value = None
+        hw._spike_count = 0
+        hw._consecutive_rejects = 0
+        hw._spike_threshold = SPIKE_THRESHOLD
+        hw._spike_reset_after = SPIKE_RESET_AFTER
+        return hw
+
+    def test_register_state_starts_empty(self):
+        hw = self._make_hw()
+        assert hw.register_state == {}
+
+    def test_register_state_is_copy(self):
+        """register_state property returns a copy, not a reference."""
+        hw = self._make_hw()
+        state = hw.register_state
+        state[0xFF] = 0x99
+        assert 0xFF not in hw.register_state
+
+    def test_ch_regs_constant(self):
+        """CH_REGS should contain all 8 channel register addresses."""
+        assert PiEEGHardware.CH_REGS == (
+            CH1SET, CH2SET, CH3SET, CH4SET,
+            CH5SET, CH6SET, CH7SET, CH8SET,
+        )
+        assert len(PiEEGHardware.CH_REGS) == 8
+        # Sequential from 0x05 to 0x0C
+        assert PiEEGHardware.CH_REGS == tuple(range(0x05, 0x0D))
+
+
+class TestMockRegisterConfig:
+    """Test MockHardware register config and input mode switching."""
+
+    def test_set_input_short_switches_mode(self):
+        from pieeg_server.mock import MockHardware
+        hw = MockHardware(num_channels=8)
+        hw.open()
+
+        hw.set_input_short()
+        assert hw._input_mode == "shorted"
+        # All CH regs should be 0x01
+        for reg in hw.CH_REGS:
+            assert hw.register_state.get(reg) == 0x01
+
+    def test_set_input_normal_restores_mode(self):
+        from pieeg_server.mock import MockHardware
+        hw = MockHardware(num_channels=8)
+        hw.open()
+
+        hw.set_input_short()
+        hw.set_input_normal()
+        assert hw._input_mode == "normal"
+        for reg in hw.CH_REGS:
+            assert hw.register_state.get(reg) == 0x00
+
+    def test_shorted_mode_produces_low_noise(self):
+        """In shorted mode, samples should be very small (±few µV)."""
+        import statistics
+        from pieeg_server.mock import MockHardware
+        hw = MockHardware(num_channels=8)
+        hw.open()
+        hw.set_input_short()
+
+        samples = [hw.read_sample() for _ in range(500)]
+        # Check all channels have low RMS
+        for ch in range(8):
+            values = [s[ch] for s in samples]
+            rms = statistics.stdev(values)
+            assert rms < 5, f"Channel {ch} RMS {rms} too high for shorted mode"
+
+    def test_normal_mode_produces_alpha(self):
+        """In normal mode, samples should have higher amplitude (alpha rhythm)."""
+        import statistics
+        from pieeg_server.mock import MockHardware
+        hw = MockHardware(num_channels=8)
+        hw.open()
+
+        samples = [hw.read_sample() for _ in range(500)]
+        values = [s[0] for s in samples]
+        rms = statistics.stdev(values)
+        assert rms > 5, f"Channel 0 RMS {rms} too low for normal mode"
+
+    def test_configure_registers_updates_state(self):
+        from pieeg_server.mock import MockHardware
+        hw = MockHardware(num_channels=8)
+        hw.open()
+
+        hw.configure_registers({0x05: 0x05, 0x06: 0x05})
+        assert hw.register_state[0x05] == 0x05
+        assert hw.register_state[0x06] == 0x05
+
+    def test_register_state_is_copy(self):
+        from pieeg_server.mock import MockHardware
+        hw = MockHardware(num_channels=8)
+        hw.open()
+
+        hw.configure_registers({0x05: 0x01})
+        state = hw.register_state
+        state[0x05] = 0xFF
+        assert hw.register_state[0x05] == 0x01
+
+
+class TestAcquisitionRestartWithConfig:
+    """Test acquisition restart_with_config method."""
+
+    def test_restart_with_config_calls_configure(self):
+        import asyncio
+        from pieeg_server.mock import MockHardware
+        from pieeg_server.acquisition import AcquisitionLoop
+
+        loop = asyncio.new_event_loop()
+        hw = MockHardware(num_channels=8)
+        hw.open()
+        acq = AcquisitionLoop(hw, loop, mock=True)
+        acq.start()
+
+        reg_map = {0x05: 0x01, 0x06: 0x01}
+        acq.restart_with_config(reg_map)
+
+        assert hw.register_state.get(0x05) == 0x01
+        assert hw.register_state.get(0x06) == 0x01
+
+        acq.stop()
+        loop.close()

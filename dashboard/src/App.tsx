@@ -15,6 +15,7 @@ import UpdateBanner from "./components/UpdateBanner";
 import ShortcutHelp from "./components/ShortcutHelp";
 import ChatPanel from "./components/ChatPanel";
 import WebhookPanel from "./components/WebhookPanel";
+import RegisterPanel from "./components/RegisterPanel";
 import ExperiencesPage from "./components/ExperiencesPage";
 import { useWebhooks } from "./hooks/useWebhooks";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -60,6 +61,7 @@ export default function App() {
   const [showStats, setShowStats] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
+  const [showRegisters, setShowRegisters] = useState(false);
   const [showWebhooks, setShowWebhooks] = useState(false);
   const [webhooksEnabled, setWebhooksEnabled] = useState(
     () => localStorage.getItem("pieeg_webhooks_enabled") === "true"
@@ -282,6 +284,9 @@ export default function App() {
         case "KeyD":
           setShowDocs((v) => !v);
           break;
+        case "KeyN":
+          setShowRegisters((v) => !v);
+          break;
         case "Escape":
           if (showDocs) setShowDocs(false);
           else if (activePreset) applyPreset(null);
@@ -458,6 +463,13 @@ export default function App() {
           title="Open documentation"
         >
           Docs
+        </button>
+        <button
+          className={`btn${showRegisters ? " active" : ""}`}
+          onClick={() => setShowRegisters((v) => !v)}
+          title="ADS1299 register config & noise diagnostic"
+        >
+          Registers
         </button>
         <div className="sep" />
         <div className="control-group">
@@ -782,6 +794,14 @@ export default function App() {
         onToggleEnabled={toggleWebhooksEnabled}
       />
 
+      {/* Register / Noise diagnostic panel */}
+      <RegisterPanel
+        open={showRegisters}
+        onClose={() => setShowRegisters(false)}
+        numChannels={numCh}
+        sendCommand={eeg.sendCommand}
+      />
+
       {/* Keyboard shortcut help (press ? to toggle) */}
       <ShortcutHelp />
 
@@ -812,6 +832,7 @@ export default function App() {
           <kbd>V</kbd> Exp
           <kbd>C</kbd> Chat
           <kbd>W</kbd> Hooks
+          <kbd>N</kbd> Regs
           <kbd>D</kbd> Docs
           <kbd>Esc</kbd> Close
           <kbd>P</kbd> Perf

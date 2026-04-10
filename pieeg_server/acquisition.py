@@ -67,6 +67,15 @@ class AcquisitionLoop:
         if self._thread:
             self._thread.join(timeout=2.0)
 
+    def restart_with_config(self, reg_map: dict[int, int]):
+        """Stop acquisition, write registers, restart the thread.
+
+        Drops ~10-20 ms of data during the transition (acceptable for config changes).
+        """
+        self.stop()
+        self._hw.configure_registers(reg_map)
+        self.start()
+
     def _run(self):
         if self._mock:
             self._run_mock()
