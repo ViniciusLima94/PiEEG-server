@@ -74,6 +74,7 @@ export default function RegisterPanel({
       }
       if ("noise_test_status" in msg) {
         if (msg.noise_test_status === "running") setNoiseRunning(true);
+        if (msg.noise_test_status === "busy") setNoiseRunning(false);
       }
     };
     (window as unknown as Record<string, unknown>).__regHandler = handler;
@@ -81,6 +82,11 @@ export default function RegisterPanel({
       delete (window as unknown as Record<string, unknown>).__regHandler;
     };
   }, [chValues, chCount]);
+
+  // Sync register state from server when panel opens
+  useEffect(() => {
+    if (open) sendCommand({ cmd: "reg_read" });
+  }, [open, sendCommand]);
 
   const handlePreset = useCallback(
     (presetId: string) => {

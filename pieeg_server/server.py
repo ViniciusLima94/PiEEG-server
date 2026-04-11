@@ -63,6 +63,7 @@ class PiEEGServer:
         self._osc_task: asyncio.Task | None = None
         self._lsl_bridge: LSLBridge | None = None
         self._lsl_task: asyncio.Task | None = None
+        self._noise_test_running = False
 
     def enable_filter(self, lowcut: float = 1.0, highcut: float = 40.0):
         self._filter = MultichannelFilter(
@@ -227,6 +228,8 @@ class PiEEGServer:
             await self._ws_reg_preset(ws, msg)
         elif cmd == "noise_test":
             await self._ws_noise_test(ws, msg)
+        elif cmd == "reg_read":
+            await self._ws_reg_read(ws)
 
     async def _start_recording(self):
         """Start recording EEG data to a timestamped CSV file."""
@@ -570,14 +573,25 @@ class PiEEGServer:
         "temp_sensor":    {r: 0x04 for r in range(0x05, 0x0D)},
     }
 
+    # Only CHnSET registers (0x05–0x0C) are allowed from the dashboard.
+    # Allowing CONFIG1/2/3 would silently change sample rate or reference.
+    _ALLOWED_REG_RANGE = range(0x05, 0x0D)
+
     async def _ws_reg_write(self, ws, msg: dict):
-        """Write arbitrary ADS1299 registers via restart_with_config."""
+        """Write CHnSET registers via restart_with_config."""
         raw_regs = msg.get("regs", {})
         if not raw_regs or not isinstance(raw_regs, dict):
             await ws.send(json.dumps({"reg_config": {"status": "error", "error": "No regs provided"}}))
             return
         reg_map = {int(k, 16) if isinstance(k, str) else int(k): int(v) & 0xFF
                    for k, v in raw_regs.items()}
+        blocked = [hex(a) for a in reg_map if a not in self._ALLOWED_REG_RANGE]
+        if blocked:
+            await ws.send(json.dumps({"reg_config": {
+                "status": "error",
+                "error": f"Register(s) {', '.join(blocked)} not allowed (only CHnSET 0x05-0x0C)",
+            }}))
+            return
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, self._acq.restart_with_config, reg_map)
         logger.info("Registers written: %s", {hex(k): hex(v) for k, v in reg_map.items()})
@@ -599,14 +613,31 @@ class PiEEGServer:
         logger.info("Register preset applied: %s", preset_name)
         await self._broadcast_reg_config()
 
+    async def _ws_reg_read(self, ws):
+        """Push current register state to the requesting client."""
+        hw = self._acq._hw
+        state = hw.register_state
+        payload = json.dumps({"reg_config": {
+            "regs": {hex(k): hex(v) for k, v in state.items()},
+            "status": "ok",
+        }})
+        await ws.send(payload)
+
     async def _ws_noise_test(self, ws, msg: dict):
         """Run the noise diagnostic: short inputs → collect → RMS → restore."""
-        duration = min(max(float(msg.get("duration", 3)), 1), 10)
-        # Notify client that test is starting
-        await ws.send(json.dumps({"noise_test_status": "running"}))
+        if self._noise_test_running:
+            await ws.send(json.dumps({"noise_test_status": "busy"}))
+            return
+        self._noise_test_running = True
+        try:
+            duration = min(max(float(msg.get("duration", 3)), 1), 10)
+            # Notify client that test is starting
+            await ws.send(json.dumps({"noise_test_status": "running"}))
 
-        result = await self._run_noise_test(duration)
-        await ws.send(json.dumps({"noise_test_result": result}))
+            result = await self._run_noise_test(duration)
+            await ws.send(json.dumps({"noise_test_result": result}))
+        finally:
+            self._noise_test_running = False
 
     async def _run_noise_test(self, duration: float = 3.0) -> dict:
         """Execute the full noise test flow and return results."""
