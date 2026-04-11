@@ -15,7 +15,7 @@ from pieeg_server.hardware import (
     SIGN_TEST, FULL_SCALE, FULL_SCALE_PLUS_1, NEGATIVE_OFFSET,
     VREF_UV, SPIKE_THRESHOLD, SPIKE_RESET_AFTER,
     EXPECTED_STATUS, BYTES_PER_READ,
-    CS_PIN, DRDY_PIN, SPI_SPEED_HZ,
+    CS_PIN, DRDY_PIN, DRDY_PIN_2, SPI_SPEED_HZ,
     CH1SET, CH2SET, CH3SET, CH4SET, CH5SET, CH6SET, CH7SET, CH8SET,
     PiEEGHardware,
 )
@@ -37,8 +37,8 @@ class TestADCConstants:
     def test_vref_is_4_5V(self):
         assert VREF_UV == 4.5e6  # 4.5V in µV
 
-    def test_spi_speed_is_1mhz(self):
-        assert SPI_SPEED_HZ == 1_000_000
+    def test_spi_speed_is_4mhz(self):
+        assert SPI_SPEED_HZ == 4_000_000
 
     def test_bytes_per_read_is_27(self):
         # 3 status + 8 channels × 3 bytes = 27
@@ -47,6 +47,7 @@ class TestADCConstants:
     def test_gpio_pins(self):
         assert CS_PIN == 19
         assert DRDY_PIN == 26
+        assert DRDY_PIN_2 == 13
 
 
 class TestSpikeDetection:

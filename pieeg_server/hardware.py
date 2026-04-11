@@ -73,10 +73,11 @@ VREF_UV = 4.5e6  # 4.5V reference in microvolts
 
 # --- GPIO pins ---
 CS_PIN = 19
-DRDY_PIN = 26
+DRDY_PIN = 26      # DRDY chip 1
+DRDY_PIN_2 = 13    # DRDY chip 2
 
 # --- SPI settings ---
-SPI_SPEED_HZ = 1_000_000
+SPI_SPEED_HZ = 4_000_000
 SPI_MODE = 0b01
 SPI_BITS = 8
 BYTES_PER_READ = 27  # 3 status + 8 channels * 3 bytes
@@ -115,6 +116,7 @@ class PiEEGHardware:
         self._chip_fd = -1
         self._cs_fd = -1
         self._drdy_fd = -1
+        self._drdy2_fd = -1
         self._spi1 = None
         self._spi2 = None
         self._last_valid_value: int | None = None
@@ -168,6 +170,9 @@ class PiEEGHardware:
         if self._drdy_fd >= 0:
             os.close(self._drdy_fd)
             self._drdy_fd = -1
+        if self._drdy2_fd >= 0:
+            os.close(self._drdy2_fd)
+            self._drdy2_fd = -1
         if self._chip_fd >= 0:
             os.close(self._chip_fd)
             self._chip_fd = -1
@@ -194,6 +199,8 @@ class PiEEGHardware:
         raw1 = self._spi1.readbytes(BYTES_PER_READ)
 
         if self._num_channels == 16:
+            # Wait for chip 2 DRDY falling edge before reading
+            self._wait_drdy2()
             self._cs_set(0)
             raw2 = self._spi2.readbytes(BYTES_PER_READ)
             self._cs_set(1)
@@ -315,10 +322,23 @@ class PiEEGHardware:
         fcntl.ioctl(self._cs_fd, _GPIOHANDLE_SET_VALUES, buf)
 
     def _drdy_get(self) -> int:
-        """Read data-ready line. Returns 1 when high."""
+        """Read chip 1 data-ready line. Returns 1 when high."""
         buf = bytearray(_HANDLE_DATA_SIZE)
         fcntl.ioctl(self._drdy_fd, _GPIOHANDLE_GET_VALUES, buf)
         return buf[0]
+
+    def _drdy2_get(self) -> int:
+        """Read chip 2 data-ready line. Returns 1 when high."""
+        buf = bytearray(_HANDLE_DATA_SIZE)
+        fcntl.ioctl(self._drdy2_fd, _GPIOHANDLE_GET_VALUES, buf)
+        return buf[0]
+
+    def _wait_drdy2(self):
+        """Block until chip 2 DRDY goes LOW (falling edge = data ready)."""
+        while self._drdy2_get() == 0:   # wait out previous low
+            pass
+        while self._drdy2_get() == 1:   # wait for HIGH→LOW
+            pass
 
     # --- private helpers ---
 
@@ -332,10 +352,16 @@ class PiEEGHardware:
             self._chip_fd, CS_PIN, _GPIOHANDLE_REQUEST_OUTPUT,
             default_value=1, consumer=b"pieeg_cs")
 
-        # Data-ready line (input)
+        # Data-ready line chip 1 (input)
         self._drdy_fd = self._request_line(
             self._chip_fd, DRDY_PIN, _GPIOHANDLE_REQUEST_INPUT,
             consumer=b"pieeg_drdy")
+
+        # Data-ready line chip 2 (input) — only for 16-ch mode
+        if self._num_channels == 16:
+            self._drdy2_fd = self._request_line(
+                self._chip_fd, DRDY_PIN_2, _GPIOHANDLE_REQUEST_INPUT,
+                consumer=b"pieeg_drdy2")
 
     @staticmethod
     def _request_line(chip_fd: int, pin: int, flags: int,

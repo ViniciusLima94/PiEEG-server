@@ -112,8 +112,8 @@ class AcquisitionLoop:
         - Wait for DRDY pin to go LOW (data ready)
         - Read SPI bytes
 
-        We replicate this exactly, with a small sleep to avoid
-        burning 100% CPU between polls.
+        We replicate the reference PiEEG script's tight busy-poll
+        for lowest possible jitter at the cost of higher CPU.
         """
         armed = False
 
@@ -124,13 +124,10 @@ class AcquisitionLoop:
             if not armed:
                 if drdy == 1:
                     armed = True
-                else:
-                    time.sleep(0.0002)  # 200 µs
                 continue
 
             # Trigger: DRDY goes low → data ready
             if drdy != 0:
-                time.sleep(0.0001)  # 100 µs
                 continue
 
             armed = False
