@@ -72,6 +72,7 @@ const ERROR_HISTORY_LEN = 60;
 const RIDGE_LAMBDA = 0.01;
 const ONLINE_COLLECT_EVERY = 15; // collect a training pair every N frames (~4 Hz at 60fps)
 const ONLINE_REFIT_EVERY = 12; // refit model after N new online samples
+const MAX_SAMPLES = 500; // cap training buffer — older samples evicted
 const STORAGE_KEY = "pieeg-eyetrack-v1";
 
 // ── EOG feature extraction from ring buffer ──────────────────────────────
@@ -394,10 +395,18 @@ export default function EyeTrack({ eegData, onExit }: ExperienceProps) {
     onlineFrameRef.current = 0;
     onlineNewRef.current = 0;
 
+    // Cache layout rect — only update on resize (avoids per-frame layout recalc)
+    let cw = canvas.clientWidth;
+    let ch = canvas.clientHeight;
+    const ro = new ResizeObserver((entries) => {
+      const e = entries[0];
+      if (e) { cw = e.contentRect.width; ch = e.contentRect.height; }
+    });
+    ro.observe(canvas);
+
     const render = () => {
-      const rect = canvas.getBoundingClientRect();
-      const w = rect.width;
-      const h = rect.height;
+      const w = cw;
+      const h = ch;
       if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
         canvas.width = w * dpr;
         canvas.height = h * dpr;
@@ -440,6 +449,10 @@ export default function EyeTrack({ eegData, onExit }: ExperienceProps) {
               hEOG: feat.hEOG, vEOG: feat.vEOG,
               x: vt.x, y: vt.y,
             });
+            // Evict oldest samples to bound memory + refit cost
+            if (samplesRef.current.length > MAX_SAMPLES) {
+              samplesRef.current = samplesRef.current.slice(-MAX_SAMPLES);
+            }
             onlineNewRef.current++;
 
             if (onlineNewRef.current >= ONLINE_REFIT_EVERY) {
@@ -482,12 +495,14 @@ export default function EyeTrack({ eegData, onExit }: ExperienceProps) {
       const vtx = cx + vt.x * rangeX;
       const vty = cy + vt.y * rangeY;
 
-      const vtGrad = ctx.createRadialGradient(vtx, vty, 0, vtx, vty, TARGET_RADIUS * 1.5);
-      vtGrad.addColorStop(0, "rgba(34,197,94,0.25)");
-      vtGrad.addColorStop(1, "rgba(34,197,94,0)");
-      ctx.fillStyle = vtGrad;
+      // Soft glow via concentric transparent circles (avoids gradient alloc)
+      ctx.fillStyle = "rgba(34,197,94,0.08)";
       ctx.beginPath();
       ctx.arc(vtx, vty, TARGET_RADIUS * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(34,197,94,0.15)";
+      ctx.beginPath();
+      ctx.arc(vtx, vty, TARGET_RADIUS * 1.0, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.strokeStyle = "#22c55e";
@@ -511,13 +526,16 @@ export default function EyeTrack({ eegData, onExit }: ExperienceProps) {
       const gy = cy + gazeRef.current.y * rangeY;
 
       const errDist = Math.hypot(gazeRef.current.x - vt.x, gazeRef.current.y - vt.y);
-      errorHistoryRef.current.push(errDist);
-      if (errorHistoryRef.current.length > ERROR_HISTORY_LEN) errorHistoryRef.current.shift();
-      const errArr = errorHistoryRef.current;
-      avgErrorRef.current = errArr.reduce((a, b) => a + b, 0) / errArr.length;
+      const errHist = errorHistoryRef.current;
+      errHist.push(errDist);
+      if (errHist.length > ERROR_HISTORY_LEN) errHist.shift();
+      // Incremental-style average (no closure alloc)
+      let errSum = 0;
+      for (let i = 0; i < errHist.length; i++) errSum += errHist[i];
+      avgErrorRef.current = errSum / errHist.length;
       const accuracy = Math.max(0, (1 - avgErrorRef.current / 1.4) * 100);
 
-      ctx.strokeStyle = `rgba(255,${errDist < 0.3 ? 255 : errDist < 0.6 ? 180 : 80},80,0.35)`;
+      ctx.strokeStyle = errDist < 0.3 ? "rgba(255,255,80,0.35)" : errDist < 0.6 ? "rgba(255,180,80,0.35)" : "rgba(255,80,80,0.35)";
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
@@ -526,12 +544,14 @@ export default function EyeTrack({ eegData, onExit }: ExperienceProps) {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      const grad = ctx.createRadialGradient(gx, gy, 0, gx, gy, DOT_RADIUS * 3);
-      grad.addColorStop(0, "rgba(59,130,246,0.35)");
-      grad.addColorStop(1, "rgba(59,130,246,0)");
-      ctx.fillStyle = grad;
+      // Soft glow via concentric circles (avoids gradient alloc)
+      ctx.fillStyle = "rgba(59,130,246,0.06)";
       ctx.beginPath();
       ctx.arc(gx, gy, DOT_RADIUS * 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(59,130,246,0.18)";
+      ctx.beginPath();
+      ctx.arc(gx, gy, DOT_RADIUS * 1.8, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.fillStyle = "#3b82f6";
@@ -592,7 +612,7 @@ export default function EyeTrack({ eegData, onExit }: ExperienceProps) {
     };
 
     raf = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(raf);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
   }, [phase, eegData]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────
