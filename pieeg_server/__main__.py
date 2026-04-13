@@ -80,9 +80,9 @@ def parse_args():
     # Shared device flag (top-level, inherited by subcommands)
     device_kwargs = dict(
         type=str,
-        choices=["pieeg8", "pieeg16", "ironbci8", "ironbci16"],
+        choices=["pieeg8", "pieeg16", "ironbci8"],
         default="pieeg16",
-        help="Hardware profile: pieeg8/16 (SPI), ironbci8/16 (BLE) — default: pieeg16",
+        help="Hardware profile: pieeg8/16 (SPI), ironbci8 (BLE) — default: pieeg16",
     )
     def _add_ble_args(parser):
         """Add BLE arguments to a parser (IronBCI / EAREEG compatible)."""
@@ -261,7 +261,7 @@ def _is_ble_device(device: str) -> bool:
 
 def _num_channels_from_device(device: str) -> int:
     """Map --device flag to channel count."""
-    return 8 if device in ("pieeg8", "ironbci8") else 16
+    return 8 if device in ("pieeg8", "ironbci8") else 16  # ironbci is always 8ch
 
 
 def _make_hardware(args, logger):

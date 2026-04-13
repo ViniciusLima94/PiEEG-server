@@ -96,8 +96,8 @@ class IronBCIHardware:
                  ble_address: str | None = None,
                  num_channels: int = 8,
                  scan_timeout: float = 10.0):
-        if num_channels not in (8, 16):
-            raise ValueError(f"num_channels must be 8 or 16, got {num_channels}")
+        if num_channels != 8:
+            raise ValueError(f"IronBCI supports 8 channels only, got {num_channels}")
         _require_bleak()
         self._ble_name = ble_name
         self._ble_address = ble_address
