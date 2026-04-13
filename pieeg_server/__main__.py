@@ -264,6 +264,13 @@ def _num_channels_from_device(device: str) -> int:
     return 8 if device in ("pieeg8", "ironbci8") else 16  # ironbci is always 8ch
 
 
+def _device_label(device: str) -> str:
+    """Human-readable label from --device flag, e.g. 'IronBCI-8' or 'PiEEG-16'."""
+    num_ch = _num_channels_from_device(device)
+    prefix = "IronBCI" if _is_ble_device(device) else "PiEEG"
+    return f"{prefix}-{num_ch}"
+
+
 def _make_hardware(args, logger):
     """Create and open the hardware backend (real, BLE, or mock)."""
     device = getattr(args, "device", "pieeg16")
@@ -403,6 +410,7 @@ def main():
                            ble=_is_ble_device(getattr(args, "device", "pieeg16")))
     acq.start()
     num_ch = acq.num_channels
+    device_label = _device_label(getattr(args, "device", "pieeg16"))
     logger.info("Acquisition started (250 Hz, %d channels%s)",
                 num_ch, " - MOCK" if args.mock else "")
 
@@ -466,7 +474,8 @@ def main():
     monitor_task = None
     if args.monitor:
         from .monitor import TerminalMonitor
-        monitor = TerminalMonitor(acq, num_channels=num_ch)
+        monitor = TerminalMonitor(acq, num_channels=num_ch,
+                                  device_label=device_label)
 
     # --- Graceful shutdown ---
     shutdown_event = None
@@ -501,7 +510,6 @@ def main():
     except socket.gaierror:
         local_ip = "127.0.0.1"
 
-    device_label = f"PiEEG-{num_ch}"
     logger.info("%s server ready:", device_label)
     logger.info("  WebSocket: ws://%s:%d", local_ip, args.port)
     logger.info("  WebSocket: ws://%s.local:%d  (mDNS)", hostname, args.port)
