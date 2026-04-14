@@ -13,7 +13,7 @@ authors = [
     {name = "PiEEG Community"},
 ]
 keywords = ["eeg", "bci", "raspberry-pi", "pieeg", "neuroscience", "websocket",
-            "brain-computer-interface", "ads1299", "spi"]
+            "brain-computer-interface", "ads1299", "spi", "ironbci", "ble"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -39,6 +39,9 @@ lsl = [
 ]
 rpi = [
     "spidev>=3.6",
+]
+ironbci = [
+    "bleak>=0.21",
 ]
 dev = [
     "pytest>=7.0",

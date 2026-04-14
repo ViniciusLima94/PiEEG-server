@@ -35,11 +35,12 @@ class TerminalMonitor:
     """Async consumer that renders a live Rich table in the terminal."""
 
     def __init__(self, acquisition, refresh_hz: float = 4.0,
-                 num_channels: int = 16):
+                 num_channels: int = 16, device_label: str = "PiEEG-16"):
         self._acq = acquisition
         self._queue = acquisition.subscribe(maxsize=512)
         self._refresh_interval = 1.0 / refresh_hz
         self._num_channels = num_channels
+        self._device_label = device_label
         self._histories: list[deque] = [
             deque(maxlen=HISTORY_LEN) for _ in range(num_channels)
         ]
@@ -84,7 +85,7 @@ class TerminalMonitor:
         elapsed = time.time() - self._start_time
         n = self._last_frame["n"] if self._last_frame else 0
 
-        device_label = f"PiEEG-{self._num_channels}"
+        device_label = self._device_label
         table = Table(
             title=f"[bold cyan]{device_label} Monitor[/]  "
                   f"[dim]samples: {n:,}  "
