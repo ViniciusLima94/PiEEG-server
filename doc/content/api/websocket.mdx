@@ -91,6 +91,19 @@ async function connectAuthenticated(code: string): Promise<WebSocket> {
 {"cmd": "lsl_status"}
 ```
 
+### ADS1299 Registers
+
+Real-time register configuration for PiEEG boards. See [Register Configuration](/features/registers) for full details.
+
+```json
+{"cmd": "reg_read"}
+{"cmd": "reg_write", "regs": {"0x05": "0x00", "0x06": "0x01"}}
+{"cmd": "reg_preset", "preset": "internal_short"}
+{"cmd": "noise_test", "duration": 3}
+```
+
+Presets: `normal`, `internal_short`, `test_signal`, `temp_sensor`.
+
 ## Messages (Server → Client)
 
 ### EEG Frame

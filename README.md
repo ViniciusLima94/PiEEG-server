@@ -208,6 +208,7 @@ That's it. Every frame is plain JSON — no SDK, no binary protocol, works in an
 | **[VRChat OSC](#vrchat-osc)** | Band powers via UDP OSC; chatbox + avatar parameters; rolling normalization |
 | **[LSL](#lab-streaming-layer)** | Push raw samples to LSL network; discoverable by OpenViBE, MNE, LabRecorder |
 | **[Webhooks](#webhooks)** | HTTP callbacks on EEG events; IFTTT & Zapier presets; per-rule cooldown |
+| **[ADS1299 registers](#ads1299-register-configuration)** | Live ADS1299 register config via WebSocket & dashboard; presets, noise test |
 | **Self-diagnostics** | `pieeg-server doctor` checks Pi model, SPI/GPIO, ports, deps, systemd |
 | **Self-update** | Detects pip/git install; checks PyPI or remote; one-click upgrade from dashboard |
 | **Systemd service** | Auto-starts on boot; standard `systemctl` management |
@@ -400,6 +401,41 @@ Config: `{ channels?, updateHz?, smoothing?, alphaWeight?, tbrCeiling? }` · Ret
 
 ---
 
+<a id="ads1299-register-configuration"></a>
+
+## ADS1299 Register Configuration
+
+PiEEG-server exposes **real-time ADS1299 register configuration** over WebSocket. Change channel input modes, run noise diagnostics, and apply presets — all live, without restarting the stream.
+
+### Configurable registers
+
+Channels `CH1SET`–`CH8SET` (addresses `0x05`–`0x0C`) can be written at runtime. Configuration registers (`CONFIG1`–`CONFIG3`) are protected.
+
+| Value | Input mode | Use case |
+|-------|------------|----------|
+| `0x00` | Normal electrode | Standard EEG measurement |
+| `0x01` | Input shorted | Baseline noise testing |
+| `0x02` | Bias measurement | Bias current check |
+| `0x04` | Temperature sensor | On-chip temp readout |
+| `0x05` | Test signal | Internal 1× square wave |
+
+### WebSocket commands
+
+```json
+{"cmd": "reg_read"}
+{"cmd": "reg_write", "regs": {"0x05": "0x00", "0x06": "0x01"}}
+{"cmd": "reg_preset", "preset": "internal_short"}
+{"cmd": "noise_test", "duration": 3}
+```
+
+Presets: `normal`, `internal_short`, `test_signal`, `temp_sensor`.
+
+The dashboard **Register panel** provides a visual interface — click to switch modes per channel, run noise tests with automated pass/fail verdicts, no code required.
+
+<sup>[↑ Navigation](#nav)</sup>
+
+---
+
 <a id="websocket-api"></a>
 
 ## WebSocket API
@@ -481,6 +517,14 @@ async function connectAuthenticated(code: string): Promise<WebSocket> {
 {"cmd": "lsl_start"}
 {"cmd": "lsl_stop"}
 {"cmd": "lsl_status"}
+```
+
+**ADS1299 Registers** (see [full details](#ads1299-register-configuration))
+```json
+{"cmd": "reg_read"}
+{"cmd": "reg_write", "regs": {"0x05": "0x00", "0x06": "0x01"}}
+{"cmd": "reg_preset", "preset": "internal_short"}
+{"cmd": "noise_test", "duration": 3}
 ```
 
 <sup>[↑ Navigation](#nav)</sup>
