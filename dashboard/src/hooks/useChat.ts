@@ -53,7 +53,8 @@ function buildEEGContext(eegData: EEGData): string {
   for (const b of FREQUENCY_BANDS) allBands[b.name] = [];
 
   let activeCh = 0;
-  for (let ch = 0; ch < NUM_CHANNELS; ch++) {
+  const nCh = eegData.numChannels;
+  for (let ch = 0; ch < nCh; ch++) {
     const result = fft.analyseRing(buffers.current[ch], wi, count);
     if (!result) continue;
     activeCh++;
