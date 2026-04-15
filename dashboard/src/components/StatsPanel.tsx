@@ -175,7 +175,7 @@ const StatsPanel = memo(function StatsPanel({ eegData }: StatsPanelProps) {
       <div className="stats-toolbar">
         <span className="stats-title">Signal Statistics</span>
         <span className="stats-meta">
-          16 channels · {SAMPLE_RATE} Hz · 2s window
+          {eegData.numChannels} channels · {SAMPLE_RATE} Hz · 2s window
         </span>
         <button className="btn stats-btn-export" onClick={downloadCSV} title="Download stats as CSV">
           ⬇ CSV
