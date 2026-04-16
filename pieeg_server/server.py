@@ -300,6 +300,8 @@ class PiEEGServer:
     async def _broadcast_loop(self):
         """Continuously read frames from the acquisition queue and broadcast."""
         queue = self._queue
+        _hampel_frame = 0
+        _hampel_last_count = 0
 
         while True:
             frame = await queue.get()
@@ -321,6 +323,20 @@ class PiEEGServer:
                     stale.add(ws)
 
             self._clients -= stale
+
+            # Emit Hampel replaced_count at ~1 Hz (every 250 frames)
+            _hampel_frame += 1
+            if _hampel_frame >= 250:
+                _hampel_frame = 0
+                count = self._acq.hampel.replaced_count
+                if count != _hampel_last_count:
+                    _hampel_last_count = count
+                    hpayload = json.dumps({"hampel_config": self._get_hampel_config()})
+                    for ws in list(self._clients):
+                        try:
+                            await ws.send(hpayload)
+                        except websockets.ConnectionClosed:
+                            pass
 
     # ── Webhook WebSocket handlers ─────────────────────────────
 
