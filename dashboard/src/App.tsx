@@ -43,6 +43,81 @@ const TIME_OPTIONS: SelectOption<number>[] = [
   { value: 16, label: "16s" },
 ];
 
+/* ── Bandpass Filter collapsible group ──────────────────────────────── */
+function BandpassGroup({
+  filterEnabled, lowcut, highcut,
+  toggleFilter, setLowcut, setHighcut, updateFilter,
+}: {
+  filterEnabled: boolean;
+  lowcut: number | string;
+  highcut: number | string;
+  toggleFilter: () => void;
+  setLowcut: (v: number | string) => void;
+  setHighcut: (v: number | string) => void;
+  updateFilter: (low: number | string, high: number | string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bandpass-group">
+      <button
+        className={`btn bandpass-group-toggle${filterEnabled ? " active" : ""}`}
+        onClick={() => setOpen((v) => !v)}
+      >
+        Bandpass {filterEnabled ? "ON" : "OFF"}
+        {filterEnabled && (
+          <span className="bandpass-range">{lowcut}–{highcut} Hz</span>
+        )}
+        <span className={`spike-caret${open ? " open" : ""}`}>▾</span>
+      </button>
+
+      {open && (
+        <div className="bandpass-group-panel">
+          <button
+            className={`btn btn-sm${filterEnabled ? " active" : ""}`}
+            onClick={toggleFilter}
+          >
+            {filterEnabled ? "Enabled" : "Disabled"}
+          </button>
+          <div className="bandpass-controls">
+            <div className="control-group">
+              <label>Low</label>
+              <input
+                type="number"
+                value={lowcut}
+                min={0.1}
+                max={50}
+                step={0.5}
+                disabled={!filterEnabled}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                  setLowcut(e.target.value);
+                  updateFilter(e.target.value, highcut);
+                }}
+              />{" "}
+              Hz
+            </div>
+            <div className="control-group">
+              <label>High</label>
+              <input
+                type="number"
+                value={highcut}
+                min={1}
+                max={125}
+                step={1}
+                disabled={!filterEnabled}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                  setHighcut(e.target.value);
+                  updateFilter(lowcut, e.target.value);
+                }}
+              />{" "}
+              Hz
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Spike Rejection collapsible group ─────────────────────────────── */
 function SpikeRejectionGroup({
   spikeEnabled, spikeThreshold, spikeResetAfter, lastSpikeThreshold,
@@ -564,12 +639,6 @@ export default function App() {
             : "Record"}
         </button>
         <button
-          className={`btn${filterEnabled ? " active" : ""}`}
-          onClick={toggleFilter}
-        >
-          Bandpass: {filterEnabled ? "ON" : "OFF"}
-        </button>
-        <button
           className={`btn${showFFT ? " active" : ""}`}
           onClick={() => setShowFFT((v) => !v)}
         >
@@ -652,36 +721,15 @@ export default function App() {
           </select>
         </div>
         <div className="sep" />
-        <div className="control-group">
-          <label>Low</label>
-          <input
-            type="number"
-            value={lowcut}
-            min={0.1}
-            max={50}
-            step={0.5}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => {
-              setLowcut(e.target.value);
-              updateFilter(e.target.value, highcut);
-            }}
-          />{" "}
-          Hz
-        </div>
-        <div className="control-group">
-          <label>High</label>
-          <input
-            type="number"
-            value={highcut}
-            min={1}
-            max={125}
-            step={1}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => {
-              setHighcut(e.target.value);
-              updateFilter(lowcut, e.target.value);
-            }}
-          />{" "}
-          Hz
-        </div>
+        <BandpassGroup
+          filterEnabled={filterEnabled}
+          lowcut={lowcut}
+          highcut={highcut}
+          toggleFilter={toggleFilter}
+          setLowcut={setLowcut}
+          setHighcut={setHighcut}
+          updateFilter={updateFilter}
+        />
         <div className="sep" />
         <div className="control-group">
           <label>Time window</label>
