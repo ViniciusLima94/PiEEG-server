@@ -16,6 +16,7 @@ import type {
 
 const CLOUD_URL = "https://pieeg-cloud.fly.dev";
 const STORAGE_KEY = "pieeg_cloud_tokens";
+export const RELAY_MAX_MINUTES = 30;
 
 export interface UseCloudReturn {
   // Auth
@@ -42,6 +43,7 @@ export interface UseCloudReturn {
   startRelay: () => Promise<void>;
   stopRelay: () => void;
   relayLoading: boolean;
+  relayElapsed: number;
 }
 
 function loadTokens(): CloudTokens | null {
@@ -82,9 +84,37 @@ export function useCloud(
   const [relayStatus, setRelayStatus] = useState<CloudRelayStatus>({ running: false });
   const [relayShareUrl, setRelayShareUrl] = useState<string | null>(null);
   const [relayLoading, setRelayLoading] = useState(false);
+  const [relayElapsed, setRelayElapsed] = useState(0);
   const relayInfoRef = useRef<CloudRelayInfo | null>(null);
+  const relayStartRef = useRef<number | null>(null);
+  const relayTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loggedIn = authStep === "logged_in";
+
+  // ── Relay elapsed timer & auto-timeout ──────────────────────────────
+  useEffect(() => {
+    if (relayStatus.running) {
+      if (!relayStartRef.current) relayStartRef.current = Date.now();
+      relayTimerRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - relayStartRef.current!) / 1000);
+        setRelayElapsed(elapsed);
+        if (elapsed >= RELAY_MAX_MINUTES * 60) {
+          // Auto-stop: max session length reached
+          stopRelay();
+        }
+      }, 1000);
+    } else {
+      relayStartRef.current = null;
+      setRelayElapsed(0);
+      if (relayTimerRef.current) {
+        clearInterval(relayTimerRef.current);
+        relayTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (relayTimerRef.current) clearInterval(relayTimerRef.current);
+    };
+  }, [relayStatus.running]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Restore session on mount ────────────────────────────────────────
   useEffect(() => {
@@ -364,5 +394,6 @@ export function useCloud(
     startRelay,
     stopRelay,
     relayLoading,
+    relayElapsed,
   };
 }

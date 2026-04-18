@@ -20,7 +20,7 @@ import CloudPanel from "./components/CloudPanel";
 import RegisterPanel from "./components/RegisterPanel";
 import ExperiencesPage from "./components/ExperiencesPage";
 import { useWebhooks } from "./hooks/useWebhooks";
-import { useCloud } from "./hooks/useCloud";
+import { useCloud, RELAY_MAX_MINUTES } from "./hooks/useCloud";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { NUM_CHANNELS } from "./types";
 import { GUIDED_PRESETS } from "./types";
@@ -624,6 +624,24 @@ export default function App({ wsUrl }: { wsUrl?: string }) {
           <span style={{ fontFamily: "var(--mono)" }}>{eeg.sampleCount.toLocaleString()} samples</span>
         </div>
       </header>
+
+      {/* Live Relay banner */}
+      {cloud.relayStatus.running && (
+        <div className="relay-banner">
+          <span className="relay-banner-dot" />
+          <span className="relay-banner-label">Live Relay active</span>
+          <span className="relay-banner-timer">
+            {Math.floor(cloud.relayElapsed / 60).toString().padStart(2, "0")}:{(cloud.relayElapsed % 60).toString().padStart(2, "0")}
+            <span className="relay-banner-limit"> / {RELAY_MAX_MINUTES}:00</span>
+          </span>
+          <span className="relay-banner-frames">
+            {cloud.relayStatus.send_count?.toLocaleString() ?? 0} frames
+          </span>
+          <button className="btn relay-banner-stop" onClick={cloud.stopRelay}>
+            Stop
+          </button>
+        </div>
+      )}
 
       {/* Controls */}
       <div className="controls">
