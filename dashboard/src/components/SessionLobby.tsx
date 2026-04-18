@@ -74,25 +74,26 @@ export default function SessionLobby({ onConnect }: Props) {
           
         </p>
 
-        {/* ── Main section ─────────────────────────────────── */}
+        {/* ── Connect ───────────────────────────────────── */}
         <div className="lobby-section">
           <h2 className="lobby-section-title">
             <span className="lobby-dot lobby-dot--green" />
-            Start a Session
+            Connect to Server
           </h2>
 
-          {/* Data source label */}
           <label className="lobby-label">Server URL</label>
           <input
             className="lobby-input"
             type="text"
             value={serverUrl}
             onChange={(e) => setServerUrl(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
             placeholder="ws://localhost:1616"
           />
-          <span className="lobby-hint">
-            Enter your PiEEG server address or use the default
-          </span>
+
+          <button className="lobby-btn lobby-btn--connect" onClick={handleCreate}>
+            Connect
+          </button>
 
           <button
             className="lobby-btn lobby-btn--demo"
@@ -104,8 +105,8 @@ export default function SessionLobby({ onConnect }: Props) {
         </div>
 
         {/* ── Join existing ────────────────────────────────── */}
-        <div className="lobby-section">
-          <label className="lobby-label">Join existing session</label>
+        <div className="lobby-section lobby-section--secondary">
+          <label className="lobby-label">Or join with a session code</label>
           <div className="lobby-join-row">
             <input
               className="lobby-input"
@@ -113,7 +114,7 @@ export default function SessionLobby({ onConnect }: Props) {
               value={sessionCode}
               onChange={(e) => setSessionCode(e.target.value)}
               onKeyDown={handleSessionKeyDown}
-              placeholder="Enter session code or URL…"
+              placeholder="Paste session code or URL…"
             />
             <button
               className="lobby-btn lobby-btn--accent"
@@ -125,14 +126,6 @@ export default function SessionLobby({ onConnect }: Props) {
           </div>
         </div>
 
-        <div className="lobby-divider">
-          <span>OR</span>
-        </div>
-
-        <button className="lobby-btn lobby-btn--primary" onClick={handleCreate}>
-          + Create New Session
-        </button>
-
         {/* ── Footer ───────────────────────────────────────── */}
         <div className="lobby-footer">
           <span className="lobby-footer-dot lobby-dot--yellow" /> Visualization
@@ -140,7 +133,7 @@ export default function SessionLobby({ onConnect }: Props) {
           <span className="lobby-footer-dot lobby-dot--green" /> Real-time Metrics
         </div>
         <p className="lobby-footer-hint">
-          Press Enter to join after entering a session code
+          Press Enter to connect after entering a server URL
         </p>
         <a
           className="lobby-gh-link"

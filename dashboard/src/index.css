@@ -4991,6 +4991,11 @@ body {
   margin-bottom: 16px;
 }
 
+.lobby-section--secondary {
+  background: transparent;
+  border-style: dashed;
+}
+
 .lobby-section-title {
   font-size: 16px;
   font-weight: 600;
@@ -5097,6 +5102,21 @@ body {
 .lobby-btn--demo:hover {
   background: rgba(0, 200, 200, 0.08);
   border-style: solid;
+}
+
+.lobby-btn--connect {
+  width: 100%;
+  margin-top: 12px;
+  background: var(--green);
+  color: #000;
+  border-color: var(--green);
+  font-size: 15px;
+  padding: 12px;
+  font-weight: 700;
+}
+
+.lobby-btn--connect:hover {
+  filter: brightness(1.15);
 }
 
 .lobby-btn--primary {
