@@ -8,7 +8,7 @@ function Root() {
   const [wsUrl, setWsUrl] = useState<string | null>(null);
 
   if (!wsUrl) return <SessionLobby onConnect={setWsUrl} />;
-  return <App wsUrl={wsUrl} />;
+  return <App wsUrl={wsUrl} onDisconnect={() => setWsUrl(null)} />;
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

@@ -285,7 +285,7 @@ function SpikeRejectionGroup({
   );
 }
 
-export default function App({ wsUrl }: { wsUrl?: string }) {
+export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconnect?: () => void }) {
   const isDemo = checkIsDemo(wsUrl);
 
   useEffect(() => {
@@ -633,6 +633,11 @@ export default function App({ wsUrl }: { wsUrl?: string }) {
           </span>
           <span style={{ fontFamily: "var(--mono)" }}>{eeg.hz ? `${eeg.hz} Hz` : "— Hz"}</span>
           <span style={{ fontFamily: "var(--mono)" }}>{eeg.sampleCount.toLocaleString()} samples</span>
+          {onDisconnect && (
+            <button className="disconnect-btn" onClick={onDisconnect} title="Return to lobby">
+              ✗ Disconnect
+            </button>
+          )}
         </div>
       </header>
 
