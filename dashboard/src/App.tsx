@@ -34,6 +34,15 @@ function checkIsDemo(wsUrl?: string): boolean {
   try { return new URL(wsUrl).hostname === FLY_DEMO_HOST; } catch { return false; }
 }
 
+/** True when wsUrl points to a server that is NOT the local dashboard origin. */
+function checkIsExternal(wsUrl?: string): boolean {
+  if (!wsUrl) return false;
+  try {
+    const host = new URL(wsUrl).hostname;
+    return host !== location.hostname && host !== "localhost" && host !== "127.0.0.1";
+  } catch { return false; }
+}
+
 type ViewState = "live" | "sessions" | "playback" | "experiences";
 
 const SCALE_OPTIONS: SelectOption<number>[] = [
@@ -287,6 +296,8 @@ function SpikeRejectionGroup({
 
 export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconnect?: () => void }) {
   const isDemo = checkIsDemo(wsUrl);
+  const isExternal = checkIsExternal(wsUrl);
+  const skipLocalAuth = isDemo || isExternal;
 
   useEffect(() => {
     document.title = isDemo ? "PiEEG Demo" : "PiEEG Dashboard";
@@ -321,11 +332,12 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
 
   const [serverInfo, setServerInfo] = useState<{ version: string; branch: string | null } | null>(null);
   useEffect(() => {
+    if (isExternal) return; // external server — don't hit local origin
     fetch("/api/info")
       .then((r) => r.json())
       .then((d) => { if (d.version) setServerInfo(d); })
       .catch(() => {});
-  }, []);
+  }, [isExternal]);
 
   // Sync local spike inputs from server (skip if user just toggled)
   const spikeUserAction = useRef(false);
@@ -553,7 +565,7 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
   // --- Sessions / Playback views ---
   if (view === "playback" && selectedSession) {
     return (
-      <AuthGate skipAuth={isDemo}>
+      <AuthGate skipAuth={skipLocalAuth}>
         <ErrorBoundary>
           <SessionViewer
             filename={selectedSession}
@@ -566,7 +578,7 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
 
   if (view === "sessions") {
     return (
-      <AuthGate skipAuth={isDemo}>
+      <AuthGate skipAuth={skipLocalAuth}>
         <ErrorBoundary>
           <SessionList
             onSelect={(filename) => { setSelectedSession(filename); setView("playback"); }}
@@ -579,7 +591,7 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
 
   if (view === "experiences") {
     return (
-      <AuthGate skipAuth={isDemo}>
+      <AuthGate skipAuth={skipLocalAuth}>
         <ErrorBoundary>
           <ExperiencesPage
             eegData={eeg.data}
@@ -596,7 +608,7 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
   eeg.data.gridSuspended = expandedCh !== null && activeChannels.has(expandedCh);
 
   return (
-    <AuthGate skipAuth={isDemo}>
+    <AuthGate skipAuth={skipLocalAuth}>
       <UpdateBanner />
       <ChannelMismatchBanner numChannels={numCh} eegData={eeg.data} connected={eeg.connected} />
       {/* Header */}

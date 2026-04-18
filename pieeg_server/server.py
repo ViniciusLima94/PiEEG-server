@@ -33,6 +33,7 @@ from .recorder import Recorder
 from .webhooks import WebhookStore
 from .osc_vrchat import VRChatOSCBridge, OSCConfig
 from .lsl import LSLBridge, LSLConfig  # LSLBridge defers pylsl import to run()
+from . import __version__
 
 RELAY_MAX_SECONDS = 30 * 60  # 30-minute hard cap, server-side
 
@@ -113,9 +114,15 @@ class PiEEGServer:
                     len(self._webhooks.list_rules()))
 
     async def _health_check(self, connection, request):
-        """Respond to HTTP health checks (e.g. Fly.io) without upgrading."""
+        """Respond to HTTP health checks and /api/info without upgrading."""
         if request.path == "/health":
             return HTTPResponse(200, "OK", Headers(), b"ok\n")
+        if request.path == "/api/info":
+            body = json.dumps({"version": __version__, "branch": None}).encode()
+            hdrs = Headers()
+            hdrs["Content-Type"] = "application/json"
+            hdrs["Access-Control-Allow-Origin"] = "*"
+            return HTTPResponse(200, "OK", hdrs, body)
 
     async def run(self):
         """Start the WebSocket server and the broadcast loop."""
