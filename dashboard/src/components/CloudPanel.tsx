@@ -30,7 +30,7 @@ export default function CloudPanel({ open, onClose, cloud }: Props) {
         <CloudTerms onAccept={handleTosAccept} />
       ) : !cloud.loggedIn ? (
         <div className="cloud-auth">
-          {cloud.authStep === "idle" && (
+          {(cloud.authStep === "idle" || cloud.authStep === "sending") && (
             <>
               <p className="cloud-intro">
                 Sign in to PiEEG Cloud to stream live EEG, upload recordings,
@@ -43,10 +43,19 @@ export default function CloudPanel({ open, onClose, cloud }: Props) {
                 placeholder="you@example.com"
                 value={cloud.email}
                 onChange={(e) => cloud.setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && cloud.sendOtp()}
+                onKeyDown={(e) => e.key === "Enter" && cloud.authStep !== "sending" && cloud.sendOtp()}
+                disabled={cloud.authStep === "sending"}
               />
-              <button className="btn cloud-btn" onClick={cloud.sendOtp}>
-                Send Login Code
+              <button
+                className="btn cloud-btn"
+                onClick={cloud.sendOtp}
+                disabled={cloud.authStep === "sending"}
+              >
+                {cloud.authStep === "sending" ? (
+                  <><span className="spinner" /> Sending…</>
+                ) : (
+                  "Send Login Code"
+                )}
               </button>
             </>
           )}

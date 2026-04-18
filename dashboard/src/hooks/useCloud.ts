@@ -24,7 +24,7 @@ export interface UseCloudReturn {
   email: string;
   setEmail: (v: string) => void;
   loggedIn: boolean;
-  authStep: "idle" | "otp_sent" | "verifying" | "logged_in";
+  authStep: "idle" | "sending" | "otp_sent" | "verifying" | "logged_in";
   authError: string | null;
   sendOtp: () => Promise<void>;
   verifyOtp: (otp: string) => Promise<void>;
@@ -76,7 +76,7 @@ export function useCloud(
   sendCommand: (cmd: Record<string, unknown>) => void,
 ): UseCloudReturn {
   const [email, setEmail] = useState(() => localStorage.getItem(EMAIL_STORAGE_KEY) || "");
-  const [authStep, setAuthStep] = useState<"idle" | "otp_sent" | "verifying" | "logged_in">("idle");
+  const [authStep, setAuthStep] = useState<"idle" | "sending" | "otp_sent" | "verifying" | "logged_in">("idle");
   const [authError, setAuthError] = useState<string | null>(null);
   const [tokens, setTokens] = useState<CloudTokens | null>(loadTokens);
   const [sessions, setSessions] = useState<CloudSession[]>([]);
@@ -192,6 +192,7 @@ export function useCloud(
 
   const sendOtp = useCallback(async () => {
     setAuthError(null);
+    setAuthStep("sending");
     try {
       // Try login first; if 404, register
       let res = await fetch(`${CLOUD_URL}/v1/auth/login`, {
@@ -213,6 +214,7 @@ export function useCloud(
       setAuthStep("otp_sent");
     } catch (err: unknown) {
       setAuthError(err instanceof Error ? err.message : "Failed to send OTP");
+      setAuthStep("idle");
     }
   }, [email]);
 

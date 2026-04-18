@@ -94,10 +94,9 @@ export function useEEG(timeWindowSec = 4, wsUrl?: string): UseEEGReturn {
 
   useEffect(() => {
     let wsBase: string;
-    let tokenUrl: string;
 
     if (wsUrl) {
-      // Explicit URL from session lobby
+      // Explicit URL from session lobby (local or remote)
       let parsed: URL;
       try {
         parsed = new URL(wsUrl);
@@ -112,44 +111,18 @@ export function useEEG(timeWindowSec = 4, wsUrl?: string): UseEEGReturn {
       }
 
       wsBase = parsed.toString();
-      // Only fetch a WS token for PiEEG servers (no query params = local server).
-      // Cloud relay share URLs already carry auth in query params.
-      if (parsed.search) {
-        tokenUrl = "";  // skip token fetch
-      } else {
-        const httpScheme = parsed.protocol === "wss:" ? "https" : "http";
-        tokenUrl = `${httpScheme}://${parsed.host}/auth/ws-token`;
-      }
     } else {
-      // Local PiEEG-server: derive WS + token URLs from current page location
+      // Local PiEEG-server: derive WS URL from current page location
       const wsHost = location.hostname || "localhost";
       const wsPort = import.meta.env.DEV ? 1616 : parseInt(location.port || "1617") - 1;
       const wsScheme = location.protocol === "https:" ? "wss" : "ws";
-      const httpScheme = location.protocol === "https:" ? "https" : "http";
       wsBase = `${wsScheme}://${wsHost}:${wsPort}`;
-      tokenUrl = import.meta.env.DEV
-        ? `${httpScheme}://${wsHost}:1617/auth/ws-token`
-        : `/auth/ws-token`;
-    }
-
-    async function fetchWsToken(): Promise<string | null> {
-      if (!tokenUrl) return null; // cloud relay URLs carry their own auth
-      try {
-        const res = await fetch(tokenUrl, { credentials: "include" });
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data.token || null;
-      } catch {
-        return null;
-      }
     }
 
     let backoffMs = BACKOFF_INITIAL_MS;
 
     async function connect() {
-      const token = await fetchWsToken();
-      const url = token ? `${wsBase}?token=${encodeURIComponent(token)}` : wsBase;
-      const ws = new WebSocket(url);
+      const ws = new WebSocket(wsBase);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -251,14 +224,28 @@ export function useEEG(timeWindowSec = 4, wsUrl?: string): UseEEGReturn {
         if (pausedRef.current) return;
 
         const channels = (msg as WSSampleMessage).channels;
+        if (!channels || !channels.length) return;
+
+        // Auto-detect channel count from first data message (relay has no welcome)
         const nCh = numChRef.current;
-        if (!channels || channels.length !== nCh) return;
+        if (channels.length !== nCh && channels.length > 0 && channels.length <= NUM_CHANNELS) {
+          numChRef.current = channels.length;
+          setNumChannels(channels.length);
+          buffersRef.current = Array.from(
+            { length: channels.length },
+            () => new Float32Array(bufferSizeRef.current),
+          );
+          writeIndexRef.current = 0;
+          samplesInBufRef.current = 0;
+        }
+        if (channels.length !== numChRef.current) return;
 
         // Write into ring buffers (no React state — refs only)
         const bufs = buffersRef.current;
         const bs = bufferSizeRef.current;
         const wi = writeIndexRef.current;
-        for (let ch = 0; ch < nCh; ch++) {
+        const curCh = numChRef.current;
+        for (let ch = 0; ch < curCh; ch++) {
           bufs[ch][wi] = channels[ch];
         }
         writeIndexRef.current = (wi + 1) % bs;
