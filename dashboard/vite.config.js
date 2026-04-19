@@ -1,12 +1,16 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 
 // Read version from pyproject.toml so the dashboard always knows the build version
-const pyproject = readFileSync(resolve(__dirname, "../pyproject.toml"), "utf-8");
-const versionMatch = pyproject.match(/^version\s*=\s*"(.+)"/m);
-const APP_VERSION = versionMatch ? versionMatch[1] : "0.0.0";
+const pyprojectPath = resolve(__dirname, "../pyproject.toml");
+let APP_VERSION = "0.0.0";
+if (existsSync(pyprojectPath)) {
+  const pyproject = readFileSync(pyprojectPath, "utf-8");
+  const versionMatch = pyproject.match(/^version\s*=\s*"(.+)"/m);
+  if (versionMatch) APP_VERSION = versionMatch[1];
+}
 
 export default defineConfig({
   plugins: [react()],
