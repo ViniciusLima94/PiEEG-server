@@ -1035,22 +1035,6 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
               >
                 View Session
               </button>
-              {cloud.loggedIn && (
-                <button
-                  className="btn modal-btn-upload"
-                  disabled={cloud.uploading}
-                  onClick={() => {
-                    const r = eeg.recordResult!;
-                    cloud.uploadSession(r.filename, r.downloadUrl, {
-                      channels: eeg.numChannels,
-                      sampleRate: SAMPLE_RATE,
-                      duration: r.duration,
-                    });
-                  }}
-                >
-                  {cloud.uploading ? "Uploading…" : "Upload to Cloud"}
-                </button>
-              )}
               <button
                 className="btn modal-btn-dismiss"
                 onClick={eeg.dismissRecordResult}

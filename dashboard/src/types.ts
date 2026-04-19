@@ -359,19 +359,6 @@ export interface CloudTokens {
   refresh: { token: string; expires: string };
 }
 
-export interface CloudSession {
-  id: string;
-  label: string;
-  channels: number;
-  sampleRate: number;
-  duration?: number;
-  fileBytes?: number;
-  tags: string[];
-  visibility: "private" | "public";
-  uploadUrl?: string;
-  createdAt: string;
-}
-
 export interface CloudRelayInfo {
   relayId: string;
   upstreamUrl: string;

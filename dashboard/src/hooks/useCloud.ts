@@ -8,7 +8,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type {
   CloudTokens,
-  CloudSession,
   CloudRelayInfo,
   CloudRelayStatus,
   WSCloudRelayMessage,
@@ -29,15 +28,6 @@ export interface UseCloudReturn {
   sendOtp: () => Promise<void>;
   verifyOtp: (otp: string) => Promise<void>;
   logout: () => void;
-  // Sessions
-  sessions: CloudSession[];
-  sessionsLoading: boolean;
-  refreshSessions: () => Promise<void>;
-  uploadSession: (filename: string, downloadUrl: string, meta?: { channels?: number; sampleRate?: number; duration?: number }) => Promise<void>;
-  deleteSession: (id: string) => Promise<void>;
-  downloadSession: (id: string) => Promise<void>;
-  uploading: boolean;
-  uploadError: string | null;
   // Relay
   relayStatus: CloudRelayStatus;
   relayShareUrl: string | null;
@@ -79,10 +69,6 @@ export function useCloud(
   const [authStep, setAuthStep] = useState<"idle" | "sending" | "otp_sent" | "verifying" | "logged_in">("idle");
   const [authError, setAuthError] = useState<string | null>(null);
   const [tokens, setTokens] = useState<CloudTokens | null>(loadTokens);
-  const [sessions, setSessions] = useState<CloudSession[]>([]);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const [relayStatus, setRelayStatus] = useState<CloudRelayStatus>({ running: false });
   const [relayShareUrl, setRelayShareUrl] = useState<string | null>(null);
   const [relayLoading, setRelayLoading] = useState(false);
@@ -254,105 +240,8 @@ export function useCloud(
     setTokens(null);
     setEmail("");
     setAuthStep("idle");
-    setSessions([]);
     setRelayShareUrl(null);
   }, [tokens]);
-
-  // ── Sessions ────────────────────────────────────────────────────────
-
-  const refreshSessions = useCallback(async () => {
-    if (!tokens?.access.token) return;
-    setSessionsLoading(true);
-    try {
-      const res = await apiFetch("/v1/sessions");
-      if (res.ok) {
-        const data = await res.json();
-        setSessions(data.results || []);
-      }
-    } finally {
-      setSessionsLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokens?.access.token]);
-
-  // Auto-load sessions when logged in
-  useEffect(() => {
-    if (loggedIn) refreshSessions();
-  }, [loggedIn, refreshSessions]);
-
-  const uploadSession = useCallback(async (filename: string, downloadUrl: string, meta?: { channels?: number; sampleRate?: number; duration?: number }) => {
-    if (!tokens?.access.token) return;
-    setUploading(true);
-    setUploadError(null);
-    try {
-      // 1. Fetch CSV from local server
-      const csvRes = await fetch(downloadUrl);
-      if (!csvRes.ok) throw new Error("Failed to download CSV from server");
-      const csvBlob = await csvRes.blob();
-
-      // 2. Create session on cloud → get presigned upload URL
-      const createRes = await apiFetch("/v1/sessions", {
-        method: "POST",
-        body: JSON.stringify({
-          label: filename.replace(/\.csv$/i, ""),
-          channels: meta?.channels ?? 16,
-          sampleRate: meta?.sampleRate ?? 250,
-          duration: meta?.duration ?? 0,
-          fileBytes: csvBlob.size,
-        }),
-      });
-      if (!createRes.ok) {
-        const data = await createRes.json().catch(() => ({}));
-        throw new Error(data.message || "Failed to create cloud session");
-      }
-      const session = await createRes.json();
-
-      // 3. PUT CSV to presigned S3 URL
-      if (session.uploadUrl) {
-        const uploadRes = await fetch(session.uploadUrl, {
-          method: "PUT",
-          body: csvBlob,
-          headers: { "Content-Type": "text/csv" },
-        });
-        if (!uploadRes.ok) throw new Error("Failed to upload CSV to cloud storage");
-      }
-
-      // 4. Refresh session list
-      await refreshSessions();
-    } catch (err: unknown) {
-      setUploadError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  }, [tokens?.access.token, refreshSessions]);
-
-  const deleteSession = useCallback(async (id: string) => {
-    if (!tokens?.access.token) return;
-    try {
-      const res = await apiFetch(`/v1/sessions/${id}`, { method: "DELETE" });
-      // Cloud returns 404 if session doesn't exist — still refresh
-      if (res.ok || res.status === 404) {
-        setSessions((prev) => prev.filter((s) => s.id !== id));
-      }
-    } catch { /* ignore */ }
-  }, [tokens?.access.token]);
-
-  const downloadSession = useCallback(async (id: string) => {
-    if (!tokens?.access.token) return;
-    try {
-      const res = await apiFetch(`/v1/sessions/${id}/download`, { redirect: "follow" });
-      if (res.ok) {
-        // Cloud redirects to S3 signed URL — browser followed it, download the blob
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `session_${id}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    } catch { /* ignore */ }
-  }, [tokens?.access.token]);
 
   // ── Relay ───────────────────────────────────────────────────────────
 
@@ -409,14 +298,6 @@ export function useCloud(
     sendOtp,
     verifyOtp,
     logout,
-    sessions,
-    sessionsLoading,
-    refreshSessions,
-    uploadSession,
-    deleteSession,
-    downloadSession,
-    uploading,
-    uploadError,
     relayStatus,
     relayShareUrl,
     startRelay,

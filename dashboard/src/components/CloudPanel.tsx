@@ -11,7 +11,6 @@ interface Props {
 
 export default function CloudPanel({ open, onClose, cloud }: Props) {
   const [otp, setOtp] = useState("");
-  const [tab, setTab] = useState<"relay" | "sessions">("relay");
   const [tosAccepted, setTosAccepted] = useState(hasAcceptedTerms);
   const [copied, setCopied] = useState(false);
 
@@ -34,8 +33,8 @@ export default function CloudPanel({ open, onClose, cloud }: Props) {
           {(cloud.authStep === "idle" || cloud.authStep === "sending") && (
             <>
               <p className="cloud-intro">
-                Sign in to PiEEG Cloud to stream live EEG, upload recordings,
-                and manage sessions from anywhere.
+                Sign in to PiEEG Cloud to stream live EEG to anyone,
+                anywhere.
               </p>
               <label className="cloud-label">Email</label>
               <input
@@ -107,25 +106,8 @@ export default function CloudPanel({ open, onClose, cloud }: Props) {
             </button>
           </div>
 
-          {/* ── Tabs ─────────────────────────────────────────────────── */}
-          <div className="cloud-tabs">
-            <button
-              className={`cloud-tab${tab === "relay" ? " active" : ""}`}
-              onClick={() => setTab("relay")}
-            >
-              Live Relay
-            </button>
-            <button
-              className={`cloud-tab${tab === "sessions" ? " active" : ""}`}
-              onClick={() => setTab("sessions")}
-            >
-              Sessions ({cloud.sessions.length})
-            </button>
-          </div>
-
-          {/* ── Relay tab ────────────────────────────────────────────── */}
-          {tab === "relay" && (
-            <div className="cloud-relay">
+          {/* ── Relay ────────────────────────────────────────────── */}
+          <div className="cloud-relay">
               {cloud.relayStatus.running ? (
                 <>
                   <div className="cloud-relay-live">
@@ -210,60 +192,6 @@ export default function CloudPanel({ open, onClose, cloud }: Props) {
                 </>
               )}
             </div>
-          )}
-
-          {/* ── Sessions tab ─────────────────────────────────────────── */}
-          {tab === "sessions" && (
-            <div className="cloud-sessions">
-              <div className="cloud-sessions-header">
-                <button
-                  className="btn cloud-btn-secondary"
-                  onClick={cloud.refreshSessions}
-                  disabled={cloud.sessionsLoading}
-                >
-                  {cloud.sessionsLoading ? "Loading…" : "Refresh"}
-                </button>
-              </div>
-
-              {cloud.sessions.length === 0 ? (
-                <p className="cloud-hint">No sessions yet. Record some EEG and upload!</p>
-              ) : (
-                <ul className="cloud-session-list">
-                  {cloud.sessions.map((s) => (
-                    <li key={s.id} className="cloud-session-item">
-                      <div className="cloud-session-info">
-                        <span className="cloud-session-label">{s.label}</span>
-                        <span className="cloud-session-meta">
-                          {s.channels}ch · {s.sampleRate}Hz
-                          {s.duration ? ` · ${Math.round(s.duration)}s` : ""}
-                          {" · "}
-                          {new Date(s.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="cloud-session-actions">
-                        <button
-                          className="btn btn-sm cloud-btn-secondary"
-                          onClick={() => cloud.downloadSession(s.id)}
-                          title="Download CSV"
-                        >
-                          ↓
-                        </button>
-                        <button
-                          className="btn btn-sm cloud-btn-delete"
-                          onClick={() => {
-                            if (confirm(`Delete "${s.label}"?`)) cloud.deleteSession(s.id);
-                          }}
-                          title="Delete session"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
         </>
       )}
     </div>
