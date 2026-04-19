@@ -54,14 +54,6 @@ export default function SessionLobby({ onConnect }: Props) {
     <div className="lobby-backdrop">
       <div className="lobby-glow" aria-hidden="true" />
       <div className="lobby-card">
-        {/* Logo */}
-        <div className="lobby-logo-wrap">
-          <img
-            src="/logo.png"
-            alt="PiEEG"
-            className="lobby-logo-img"
-          />
-        </div>
         <div className="lobby-title">
           Pi<span className="lobby-title-accent">EEG</span>-server
         </div>
