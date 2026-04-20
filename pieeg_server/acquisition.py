@@ -19,6 +19,10 @@ SAMPLE_INTERVAL = 1.0 / SAMPLE_RATE  # 4 ms
 # At 250 Hz, 25 frames = 100 ms — enough for SPI + ADC to settle.
 _SETTLE_FRAMES = 25
 
+import logging
+
+logger = logging.getLogger("pieeg.acquisition")
+
 
 class AcquisitionLoop:
     """Runs the SPI read loop in a background thread, feeds async queues."""
