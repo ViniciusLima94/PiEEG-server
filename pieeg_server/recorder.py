@@ -79,7 +79,8 @@ class Recorder:
 
                     frame = await self._queue.get()
                     channels = frame.get("channels", [])
-                    writer.writerow([frame["t"], *channels])
+                    button = frame.get("button", [])
+                    writer.writerow([frame["t"], *channels, *button])
                     self._frames_written += 1
 
                     # Flush every 250 frames (~1 second at 250 Hz)

@@ -118,7 +118,8 @@ class AcquisitionLoop:
             frame = {
                 "t": round(time.time(), 6),
                 "n": self._sample_count,
-                "channels": sample,
+                "channels": sample[:-1],
+                "button": sample[-1],
             }
             self._loop.call_soon_threadsafe(self._enqueue, frame)
             time.sleep(SAMPLE_INTERVAL)
