@@ -163,7 +163,8 @@ class AcquisitionLoop:
                 self._settle_remaining -= 1
                 continue
 
-            sample = self._hampel.apply(sample)
+            button = sample[-1]
+            sample = self._hampel.apply(sample[:-1])
             self._sample_count += 1
             timestamp = time.time()
 
@@ -171,6 +172,7 @@ class AcquisitionLoop:
                 "t": round(timestamp, 6),
                 "n": self._sample_count,
                 "channels": sample,
+                "button": button,
             }
 
             # Non-blocking put into the asyncio queue from this thread
