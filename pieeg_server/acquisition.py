@@ -158,7 +158,7 @@ class AcquisitionLoop:
             if sample is None:
                 continue
 
-            button = float(self._hw.read_button())
+            button = self._hw.read_button()
             sample = self._hampel.apply(sample)
             self._sample_count += 1
             timestamp = time.time()
