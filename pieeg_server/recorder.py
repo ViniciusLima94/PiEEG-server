@@ -79,7 +79,7 @@ class Recorder:
 
                     frame = await self._queue.get()
                     channels = frame.get("channels", [])
-                    button = frame.get("button", [])
+                    button = frame.get("button", 0)
                     writer.writerow([frame["t"], *channels, button])
                     self._frames_written += 1
 
