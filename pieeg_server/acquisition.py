@@ -153,21 +153,17 @@ class AcquisitionLoop:
                 continue
 
             armed = False
+
             sample = self._hw.read_sample()
             if sample is None:
                 continue
 
-            # Discard settling frames after register config change —
-            # SPI bus often produces corrupted data right after RDATAC+START
-            if self._settle_remaining > 0:
-                self._settle_remaining -= 1
-                continue
-
-            button = sample[-1]
-            sample = self._hampel.apply(sample[:-1])
+            button = float(
+                self._hw.read_button()
+            )  # read separately, never touches Hampel
+            sample = self._hampel.apply(sample)
             self._sample_count += 1
             timestamp = time.time()
-
             frame = {
                 "t": round(timestamp, 6),
                 "n": self._sample_count,

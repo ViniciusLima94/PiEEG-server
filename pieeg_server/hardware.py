@@ -188,13 +188,11 @@ class PiEEGHardware:
             channels = []
             channels.extend(self._decode_channels(raw1))
             channels.extend(self._decode_channels(raw2))
-            channels.append(float(self.read_button()))  # button input
             return channels
         else:
             if not self._is_valid_frame(raw1):
                 return None
             channels = self._decode_channels(raw1)
-            channels.append(float(self.read_button()))
             return channels
 
     def _is_valid_frame(self, raw: list[int]) -> bool:
