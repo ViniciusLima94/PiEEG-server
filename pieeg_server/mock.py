@@ -40,7 +40,9 @@ class MockHardware:
         # Per-channel random parameters for variety
         self._alpha_amp = [random.uniform(15, 50) for _ in range(self._num_channels)]
         self._alpha_freq = [random.uniform(9, 11) for _ in range(self._num_channels)]
-        self._alpha_phase = [random.uniform(0, 2 * math.pi) for _ in range(self._num_channels)]
+        self._alpha_phase = [
+            random.uniform(0, 2 * math.pi) for _ in range(self._num_channels)
+        ]
         self._noise_amp = [random.uniform(5, 20) for _ in range(self._num_channels)]
         # Spike config (mirrors PiEEGHardware interface)
         self._spike_threshold = 5000
@@ -92,8 +94,10 @@ class MockHardware:
             self._pending_spikes -= 1
             amplitude = random.uniform(800, 1500)
             sign = random.choice([-1, 1])
-            return [round(sign * amplitude + random.gauss(0, 5), 2)
-                    for _ in range(self._num_channels)]
+            return [
+                round(sign * amplitude + random.gauss(0, 5), 2)
+                for _ in range(self._num_channels)
+            ]
 
         channels = []
         for ch in range(self._num_channels):
@@ -105,7 +109,9 @@ class MockHardware:
             elif mode == 0x05:
                 # Test signal: 1.8 mV square wave at ~2 Hz
                 period = SAMPLE_RATE // 2  # 2 Hz
-                val = 1800.0 if (self._sample_index % period) < (period // 2) else -1800.0
+                val = (
+                    1800.0 if (self._sample_index % period) < (period // 2) else -1800.0
+                )
                 channels.append(round(val + random.gauss(0, 0.5), 2))
             elif mode == 0x04:
                 # Temperature sensor: slow sawtooth ~25 °C baseline
@@ -127,6 +133,9 @@ class MockHardware:
                 channels.append(round(alpha + drift + noise + blink, 2))
 
         return channels
+
+    def read_button(self) -> int:
+        return 0
 
     def __enter__(self):
         self.open()
