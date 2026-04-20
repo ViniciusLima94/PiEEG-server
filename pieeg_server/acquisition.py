@@ -23,8 +23,13 @@ _SETTLE_FRAMES = 25
 class AcquisitionLoop:
     """Runs the SPI read loop in a background thread, feeds async queues."""
 
-    def __init__(self, hardware, loop: asyncio.AbstractEventLoop,
-                 mock: bool = False, ble: bool = False):
+    def __init__(
+        self,
+        hardware,
+        loop: asyncio.AbstractEventLoop,
+        mock: bool = False,
+        ble: bool = False,
+    ):
         self._hw = hardware
         self._loop = loop
         self._mock = mock
@@ -157,6 +162,7 @@ class AcquisitionLoop:
                 continue
 
             sample = self._hampel.apply(sample)
+            print(sample)
             self._sample_count += 1
             timestamp = time.time()
 
@@ -202,9 +208,8 @@ class AcquisitionLoop:
             future.result(timeout=30.0)
         except Exception as e:
             import logging
-            logging.getLogger("pieeg.acquisition").error(
-                "BLE connection failed: %s", e
-            )
+
+            logging.getLogger("pieeg.acquisition").error("BLE connection failed: %s", e)
             return
 
         while not self._stop_event.is_set():
