@@ -316,7 +316,7 @@ class PiEEGHardware:
         """Read the button pin. Returns 1 when pressed (high), 0 otherwise."""
         buf = bytearray(_HANDLE_DATA_SIZE)
         fcntl.ioctl(self._button_fd, _GPIOHANDLE_GET_VALUES, buf)
-        print(f"DEBUG button buf[0]={buf[0]} type={type(buf[0])}", flush=True)
+        logger.warning("DEBUG button buf[0]=%s type=%s", buf[0], type(buf[0]))
         return buf[0]
 
     @staticmethod
