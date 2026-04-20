@@ -21,15 +21,19 @@ logger = logging.getLogger("pieeg.recorder")
 
 
 def _make_csv_header(num_channels: int = 16) -> list[str]:
-    return ["timestamp", *(f"ch{i}" for i in range(1, num_channels + 1))]
+    return ["timestamp", *(f"ch{i}" for i in range(1, num_channels + 1)), "button"]
 
 
 class Recorder:
     """Async consumer that writes EEG frames to a CSV file."""
 
-    def __init__(self, acquisition, output: str | Path,
-                 duration: float | None = None,
-                 num_channels: int = 16):
+    def __init__(
+        self,
+        acquisition,
+        output: str | Path,
+        duration: float | None = None,
+        num_channels: int = 16,
+    ):
         """
         Parameters
         ----------
@@ -58,15 +62,19 @@ class Recorder:
             writer.writerow(_make_csv_header(self._num_channels))
 
             self._start_time = time.time()
-            logger.info("Recording to %s%s",
-                        self._output,
-                        f" for {self._duration}s" if self._duration else "")
+            logger.info(
+                "Recording to %s%s",
+                self._output,
+                f" for {self._duration}s" if self._duration else "",
+            )
 
             try:
                 while True:
                     # Check duration limit
-                    if (self._duration is not None and
-                            time.time() - self._start_time >= self._duration):
+                    if (
+                        self._duration is not None
+                        and time.time() - self._start_time >= self._duration
+                    ):
                         break
 
                     frame = await self._queue.get()
@@ -83,5 +91,6 @@ class Recorder:
                 self._acq.unsubscribe(self._queue)
                 logger.info(
                     "Recording complete: %d frames → %s",
-                    self._frames_written, self._output,
+                    self._frames_written,
+                    self._output,
                 )

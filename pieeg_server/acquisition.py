@@ -162,7 +162,6 @@ class AcquisitionLoop:
                 continue
 
             sample = self._hampel.apply(sample)
-            print(sample)
             self._sample_count += 1
             timestamp = time.time()
 
