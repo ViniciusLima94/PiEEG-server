@@ -113,13 +113,14 @@ class AcquisitionLoop:
         """Generate synthetic data at 250 Hz for testing without hardware."""
         while not self._stop_event.is_set():
             sample = self._hw.read_sample()
-            sample = self._hampel.apply(sample)
+            button = sample[-1]
+            sample = self._hampel.apply(sample[:-1])
             self._sample_count += 1
             frame = {
                 "t": round(time.time(), 6),
                 "n": self._sample_count,
-                "channels": sample[:-1],
-                "button": sample[-1],
+                "channels": sample,
+                "button": button,
             }
             self._loop.call_soon_threadsafe(self._enqueue, frame)
             time.sleep(SAMPLE_INTERVAL)
