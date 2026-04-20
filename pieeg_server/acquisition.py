@@ -113,11 +113,12 @@ class AcquisitionLoop:
         """Generate synthetic data at 250 Hz for testing without hardware."""
         while not self._stop_event.is_set():
             sample = self._hw.read_sample()
-            button = sample[-1]
-            sample = self._hampel.apply(sample[:-1])
+            button = self._hw.read_button()
+            sample = self._hampel.apply(sample)
             self._sample_count += 1
+            timestamp = time.time()
             frame = {
-                "t": round(time.time(), 6),
+                "t": round(timestamp, 6),
                 "n": self._sample_count,
                 "channels": sample,
                 "button": button,
@@ -189,7 +190,6 @@ class AcquisitionLoop:
 
     def _run_ble(self):
         """BLE acquisition: connect, then poll the notification buffer at 250 Hz.
-
         The IronBCIHardware receives data via BLE notification callbacks which
         fill an internal buffer. This loop drains that buffer at the sample rate
         and pushes frames into the async queues, matching the same timing
@@ -214,12 +214,13 @@ class AcquisitionLoop:
             if sample is None:
                 time.sleep(SAMPLE_INTERVAL)
                 continue
-
+            button = self._hw.read_button() if hasattr(self._hw, "read_button") else 0
             sample = self._hampel.apply(sample)
             self._sample_count += 1
             frame = {
                 "t": round(time.time(), 6),
                 "n": self._sample_count,
                 "channels": sample,
+                "button": button,
             }
             self._loop.call_soon_threadsafe(self._enqueue, frame)
