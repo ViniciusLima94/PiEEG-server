@@ -398,7 +398,8 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
       setActiveChannels(new Set(Array.from({ length: numCh }, (_, i) => i)));
     }
     // Filter
-    setFilterEnabled(preset.filterEnabled);
+    //setFilterEnabled(preset.filterEnabled);
+    setFilterEnabled(false);
     setLowcut(preset.lowcut);
     setHighcut(preset.highcut);
     eeg.sendCommand({
@@ -410,9 +411,12 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
     // Display
     setTimeWindow(preset.timeWindow);
     setYScale(preset.yScale);
-    setShowFFT(preset.showFFT);
-    setShowSpectrogram(preset.showSpectrogram);
-    setShowStats(preset.showStats);
+    // setShowFFT(preset.showFFT);
+    // setShowSpectrogram(preset.showSpectrogram);
+    setShowFFT(false);
+    setShowSpectrogram(false);
+    setShowStats(false);
+    // setShowStats(preset.showStats);
     // Unpause if paused
     if (paused) {
       setPaused(false);
@@ -604,7 +608,7 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
 
   // Suspend grid RAF loops while expanded overlay covers them
   eeg.data.gridSuspended = expandedCh !== null && activeChannels.has(expandedCh);
-  console.log(showFFT, filterEnabled)
+  // console.log(showFFT, filterEnabled)
   return (
     <AuthGate skipAuth={skipLocalAuth}>
       <UpdateBanner />
