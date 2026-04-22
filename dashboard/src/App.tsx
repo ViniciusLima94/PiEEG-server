@@ -604,7 +604,7 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
 
   // Suspend grid RAF loops while expanded overlay covers them
   eeg.data.gridSuspended = expandedCh !== null && activeChannels.has(expandedCh);
-
+  console.log(showFFT, filterEnabled)
   return (
     <AuthGate skipAuth={skipLocalAuth}>
       <UpdateBanner />
