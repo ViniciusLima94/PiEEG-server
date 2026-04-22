@@ -46,10 +46,14 @@ DEFAULT_PORT = 1616  # PiEEG → 1616
 class PiEEGServer:
     """WebSocket server broadcasting EEG frames to all connected clients."""
 
-    def __init__(self, acquisition: AcquisitionLoop,
-                 host: str = DEFAULT_HOST, port: int = DEFAULT_PORT,
-                 auth: AuthManager | None = None,
-                 num_channels: int = 16):
+    def __init__(
+        self,
+        acquisition: AcquisitionLoop,
+        host: str = DEFAULT_HOST,
+        port: int = DEFAULT_PORT,
+        auth: AuthManager | None = None,
+        num_channels: int = 16,
+    ):
         self._acq = acquisition
         self._host = host
         self._port = port
@@ -57,7 +61,7 @@ class PiEEGServer:
         self._num_channels = num_channels
         self._clients: set[websockets.ServerConnection] = set()
         self._filter: MultichannelFilter | None = None
-        self.enable_filter()  # filter on by default
+        # self.enable_filter()  # filter on by default
         self._queue = acquisition.subscribe()
         self._recorder: Recorder | None = None
         self._recorder_task: asyncio.Task | None = None
@@ -76,7 +80,9 @@ class PiEEGServer:
 
     def enable_filter(self, lowcut: float = 1.0, highcut: float = 40.0):
         self._filter = MultichannelFilter(
-            num_channels=self._num_channels, lowcut=lowcut, highcut=highcut,
+            num_channels=self._num_channels,
+            lowcut=lowcut,
+            highcut=highcut,
         )
 
     def disable_filter(self):
@@ -110,8 +116,9 @@ class PiEEGServer:
         if rules_path:
             kwargs["rules_path"] = rules_path
         self._webhooks = WebhookStore(**kwargs)
-        logger.info("Webhooks enabled (%d rules loaded)",
-                    len(self._webhooks.list_rules()))
+        logger.info(
+            "Webhooks enabled (%d rules loaded)", len(self._webhooks.list_rules())
+        )
 
     def _cors_headers(self, request) -> Headers:
         """Build CORS headers reflecting the request Origin."""
@@ -150,18 +157,21 @@ class PiEEGServer:
         # letting websockets fail with a confusing 426.
         if is_plain_http:
             hdrs = self._cors_headers(request)
-            return HTTPResponse(400, "Bad Request", hdrs, b"WebSocket upgrade required\n")
+            return HTTPResponse(
+                400, "Bad Request", hdrs, b"WebSocket upgrade required\n"
+            )
 
     async def run(self):
         """Start the WebSocket server and the broadcast loop."""
         async with websockets.serve(
-            self._handle_client, self._host, self._port,
-            ping_interval=20, ping_timeout=10,
+            self._handle_client,
+            self._host,
+            self._port,
+            ping_interval=20,
+            ping_timeout=10,
             process_request=self._health_check,
         ):
-            logger.info(
-                "Streaming · ws://%s:%d", self._host, self._port
-            )
+            logger.info("Streaming · ws://%s:%d", self._host, self._port)
             # Auto-start bridges if pre-configured (via CLI flags)
             if self._osc_bridge:
                 await self._osc_autostart()
@@ -192,7 +202,9 @@ class PiEEGServer:
             "channels": self._num_channels,
             "filter": self._filter is not None,
             "mock": self._acq._mock,
-            "lsl_status": self._lsl_bridge.status() if self._lsl_bridge else {"running": False},
+            "lsl_status": (
+                self._lsl_bridge.status() if self._lsl_bridge else {"running": False}
+            ),
             "cloud_relay_status": self._get_cloud_relay_status(),
             "spike_config": self._get_spike_config(),
             "hampel_config": self._get_hampel_config(),
@@ -230,7 +242,9 @@ class PiEEGServer:
                     logger.warning("Invalid filter params: %s", exc)
                     return
                 if not (0 < lowcut < highcut <= 125):
-                    logger.warning("Filter bounds out of range: %.1f-%.1f", lowcut, highcut)
+                    logger.warning(
+                        "Filter bounds out of range: %.1f-%.1f", lowcut, highcut
+                    )
                     return
                 self.enable_filter(lowcut, highcut)
                 logger.info("Filter enabled: %.1f-%.1f Hz", lowcut, highcut)
@@ -320,18 +334,24 @@ class PiEEGServer:
             pass
         frames = self._recorder.frames_written
         filename = self._recorder._output.name
-        duration = round(time.time() - self._record_start_time, 1) if self._record_start_time else 0
+        duration = (
+            round(time.time() - self._record_start_time, 1)
+            if self._record_start_time
+            else 0
+        )
         path = str(self._recorder._output.resolve())
         logger.info("Recording stopped: %d frames → %s", frames, filename)
         self._recorder = None
         self._recorder_task = None
         self._record_start_time = None
-        await self._broadcast_record_status(stop_info={
-            "filename": filename,
-            "frames": frames,
-            "duration": duration,
-            "path": path,
-        })
+        await self._broadcast_record_status(
+            stop_info={
+                "filename": filename,
+                "frames": frames,
+                "duration": duration,
+                "path": path,
+            }
+        )
 
     async def _broadcast_record_status(self, stop_info: dict | None = None):
         """Send recording status to all connected clients."""
@@ -610,16 +630,25 @@ class PiEEGServer:
 
     async def _ws_cloud_relay_status(self, ws):
         """Send current cloud relay status to the requesting client."""
-        await ws.send(json.dumps({"cloud_relay_status": self._get_cloud_relay_status()}))
+        await ws.send(
+            json.dumps({"cloud_relay_status": self._get_cloud_relay_status()})
+        )
 
     async def _ws_cloud_relay_start(self, ws, msg: dict):
         """Start the cloud relay bridge."""
         upstream_url = msg.get("upstream_url")
         token = msg.get("token")
         if not upstream_url or not token:
-            await ws.send(json.dumps({
-                "cloud_relay_status": {"running": False, "error": "Missing upstream_url or token"},
-            }))
+            await ws.send(
+                json.dumps(
+                    {
+                        "cloud_relay_status": {
+                            "running": False,
+                            "error": "Missing upstream_url or token",
+                        },
+                    }
+                )
+            )
             return
 
         # Stop existing relay if running
@@ -644,7 +673,11 @@ class PiEEGServer:
 
     async def _stop_cloud_relay(self, *, broadcast: bool = True):
         """Internal: stop relay, cancel timeout, clear meta, optionally broadcast."""
-        if self._cloud_relay and self._cloud_relay_task and not self._cloud_relay_task.done():
+        if (
+            self._cloud_relay
+            and self._cloud_relay_task
+            and not self._cloud_relay_task.done()
+        ):
             self._cloud_relay.stop()
             try:
                 await asyncio.wait_for(self._cloud_relay_task, timeout=2.0)
@@ -670,7 +703,9 @@ class PiEEGServer:
         """Server-side hard cap: stop relay after RELAY_MAX_SECONDS."""
         try:
             await asyncio.sleep(RELAY_MAX_SECONDS)
-            logger.info("Cloud relay auto-timeout reached (%d min)", RELAY_MAX_SECONDS // 60)
+            logger.info(
+                "Cloud relay auto-timeout reached (%d min)", RELAY_MAX_SECONDS // 60
+            )
             await self._stop_cloud_relay()
         except asyncio.CancelledError:
             pass
@@ -704,8 +739,11 @@ class PiEEGServer:
                 hw.spike_threshold = int(config["threshold"])
             if "reset_after" in config:
                 hw.spike_reset_after = int(config["reset_after"])
-            logger.info("Spike config updated: threshold=%d, reset_after=%d",
-                        hw.spike_threshold, hw.spike_reset_after)
+            logger.info(
+                "Spike config updated: threshold=%d, reset_after=%d",
+                hw.spike_threshold,
+                hw.spike_reset_after,
+            )
         await self._broadcast_spike_config()
 
     async def _broadcast_spike_config(self):
@@ -722,7 +760,16 @@ class PiEEGServer:
     async def _ws_inject_spike(self, ws, msg: dict):
         """Inject synthetic spike(s) into the mock data stream (mock mode only)."""
         if not self._acq._mock:
-            await ws.send(json.dumps({"inject_spike": {"ok": False, "error": "Only available in mock mode"}}))
+            await ws.send(
+                json.dumps(
+                    {
+                        "inject_spike": {
+                            "ok": False,
+                            "error": "Only available in mock mode",
+                        }
+                    }
+                )
+            )
             return
         count = max(1, int(msg.get("count", 1)))
         self._acq._hw.inject_spike(count)
@@ -745,8 +792,12 @@ class PiEEGServer:
                 hampel.window_size = int(config["window_size"])
             if "n_sigma" in config:
                 hampel.n_sigma = float(config["n_sigma"])
-            logger.info("Hampel config updated: enabled=%s, window=%d, n_sigma=%.1f",
-                        hampel.enabled, hampel.window_size, hampel.n_sigma)
+            logger.info(
+                "Hampel config updated: enabled=%s, window=%d, n_sigma=%.1f",
+                hampel.enabled,
+                hampel.window_size,
+                hampel.n_sigma,
+            )
         await self._broadcast_hampel_config()
 
     async def _broadcast_hampel_config(self):
@@ -765,9 +816,9 @@ class PiEEGServer:
     # Preset definitions: name → {addr: value} register map
     _REG_PRESETS: dict[str, dict[int, int]] = {
         "internal_short": {r: 0x01 for r in range(0x05, 0x0D)},
-        "normal":         {r: 0x00 for r in range(0x05, 0x0D)},
-        "test_signal":    {r: 0x05 for r in range(0x05, 0x0D)},
-        "temp_sensor":    {r: 0x04 for r in range(0x05, 0x0D)},
+        "normal": {r: 0x00 for r in range(0x05, 0x0D)},
+        "test_signal": {r: 0x05 for r in range(0x05, 0x0D)},
+        "temp_sensor": {r: 0x04 for r in range(0x05, 0x0D)},
     }
 
     # Only CHnSET registers (0x05–0x0C) are allowed from the dashboard.
@@ -778,20 +829,34 @@ class PiEEGServer:
         """Write CHnSET registers via restart_with_config."""
         raw_regs = msg.get("regs", {})
         if not raw_regs or not isinstance(raw_regs, dict):
-            await ws.send(json.dumps({"reg_config": {"status": "error", "error": "No regs provided"}}))
+            await ws.send(
+                json.dumps(
+                    {"reg_config": {"status": "error", "error": "No regs provided"}}
+                )
+            )
             return
-        reg_map = {int(k, 16) if isinstance(k, str) else int(k): int(v) & 0xFF
-                   for k, v in raw_regs.items()}
+        reg_map = {
+            int(k, 16) if isinstance(k, str) else int(k): int(v) & 0xFF
+            for k, v in raw_regs.items()
+        }
         blocked = [hex(a) for a in reg_map if a not in self._ALLOWED_REG_RANGE]
         if blocked:
-            await ws.send(json.dumps({"reg_config": {
-                "status": "error",
-                "error": f"Register(s) {', '.join(blocked)} not allowed (only CHnSET 0x05-0x0C)",
-            }}))
+            await ws.send(
+                json.dumps(
+                    {
+                        "reg_config": {
+                            "status": "error",
+                            "error": f"Register(s) {', '.join(blocked)} not allowed (only CHnSET 0x05-0x0C)",
+                        }
+                    }
+                )
+            )
             return
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, self._acq.restart_with_config, reg_map)
-        logger.info("Registers written: %s", {hex(k): hex(v) for k, v in reg_map.items()})
+        logger.info(
+            "Registers written: %s", {hex(k): hex(v) for k, v in reg_map.items()}
+        )
         await self._broadcast_reg_config()
 
     async def _ws_reg_preset(self, ws, msg: dict):
@@ -799,11 +864,17 @@ class PiEEGServer:
         preset_name = msg.get("preset", "")
         reg_map = self._REG_PRESETS.get(preset_name)
         if reg_map is None:
-            await ws.send(json.dumps({"reg_config": {
-                "status": "error",
-                "error": f"Unknown preset: {preset_name}",
-                "available": list(self._REG_PRESETS.keys()),
-            }}))
+            await ws.send(
+                json.dumps(
+                    {
+                        "reg_config": {
+                            "status": "error",
+                            "error": f"Unknown preset: {preset_name}",
+                            "available": list(self._REG_PRESETS.keys()),
+                        }
+                    }
+                )
+            )
             return
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, self._acq.restart_with_config, dict(reg_map))
@@ -814,10 +885,14 @@ class PiEEGServer:
         """Push current register state to the requesting client."""
         hw = self._acq._hw
         state = hw.register_state
-        payload = json.dumps({"reg_config": {
-            "regs": {hex(k): hex(v) for k, v in state.items()},
-            "status": "ok",
-        }})
+        payload = json.dumps(
+            {
+                "reg_config": {
+                    "regs": {hex(k): hex(v) for k, v in state.items()},
+                    "status": "ok",
+                }
+            }
+        )
         await ws.send(payload)
 
     async def _ws_noise_test(self, ws, msg: dict):
@@ -887,7 +962,9 @@ class PiEEGServer:
 
         # 6. Restore original config + restart
         if saved_config:
-            await loop.run_in_executor(None, self._acq.restart_with_config, saved_config)
+            await loop.run_in_executor(
+                None, self._acq.restart_with_config, saved_config
+            )
         else:
             normal_regs = {r: 0x00 for r in range(0x05, 0x0D)}
             await loop.run_in_executor(None, self._acq.restart_with_config, normal_regs)
@@ -934,10 +1011,14 @@ class PiEEGServer:
         """Push current register state to all connected clients."""
         hw = self._acq._hw
         state = hw.register_state
-        payload = json.dumps({"reg_config": {
-            "regs": {hex(k): hex(v) for k, v in state.items()},
-            "status": "ok",
-        }})
+        payload = json.dumps(
+            {
+                "reg_config": {
+                    "regs": {hex(k): hex(v) for k, v in state.items()},
+                    "status": "ok",
+                }
+            }
+        )
         stale = set()
         for ws in list(self._clients):
             try:
@@ -945,4 +1026,3 @@ class PiEEGServer:
             except websockets.ConnectionClosed:
                 stale.add(ws)
         self._clients -= stale
-
