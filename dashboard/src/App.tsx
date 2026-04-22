@@ -303,7 +303,7 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [showFFT, setShowFFT] = useState(false);
-  const [filterEnabled, setFilterEnabled] = useState(true);
+  const [filterEnabled, setFilterEnabled] = useState(false);
   const [lowcut, setLowcut] = useState<number | string>(1);
   const [highcut, setHighcut] = useState<number | string>(40);
   const [timeWindow, setTimeWindow] = useState(4);
