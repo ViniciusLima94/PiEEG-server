@@ -54,7 +54,7 @@ class LSLBridge:
                 "Install it with:  pip install pieeg-server[lsl]"
             ) from None
 
-        num_ch = self._acq.num_channels
+        num_ch = self._acq.num_channels + 1  # plus one for the button
         info = StreamInfo(
             name=self._cfg.stream_name,
             type=self._cfg.stream_type,
@@ -71,11 +71,6 @@ class LSLBridge:
             ch.append_child_value("label", f"Ch{i}")
             ch.append_child_value("unit", "microvolts")
             ch.append_child_value("type", "EEG")
-        # add button
-        ch = chns.append_child("channel")
-        ch.append_child_value("label", "button")
-        ch.append_child_value("unit", "a.u")
-        ch.append_child_value("type", "periferic")
 
         self._outlet = StreamOutlet(info)
         logger.info(
