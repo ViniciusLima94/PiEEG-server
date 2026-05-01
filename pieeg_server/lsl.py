@@ -102,7 +102,7 @@ class LSLBridge:
                     break
                 if self._outlet is not None:
                     self._outlet.push_sample(
-                        frame["channels"] + frame["button"], frame["t"]
+                        frame["channels"] + [frame["button"]], frame["t"]
                     )
                     self._sample_count += 1
         except asyncio.CancelledError:
