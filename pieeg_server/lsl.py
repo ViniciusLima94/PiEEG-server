@@ -30,6 +30,7 @@ class LSLConfig:
 
     def to_dict(self) -> dict:
         from dataclasses import asdict
+
         return asdict(self)
 
 
@@ -70,11 +71,18 @@ class LSLBridge:
             ch.append_child_value("label", f"Ch{i}")
             ch.append_child_value("unit", "microvolts")
             ch.append_child_value("type", "EEG")
+        # add button
+        ch = chns.append_child("channel")
+        ch.append_child_value("label", "button")
+        ch.append_child_value("unit", "a.u")
+        ch.append_child_value("type", "periferic")
 
         self._outlet = StreamOutlet(info)
         logger.info(
             "LSL outlet created: %s (%d ch @ %d Hz)",
-            self._cfg.stream_name, num_ch, SAMPLE_RATE,
+            self._cfg.stream_name,
+            num_ch,
+            SAMPLE_RATE,
         )
 
     async def run(self):
@@ -93,7 +101,9 @@ class LSLBridge:
                 if not self._running:
                     break
                 if self._outlet is not None:
-                    self._outlet.push_sample(frame["channels"], frame["t"])
+                    self._outlet.push_sample(
+                        frame["channels"] + frame["button"], frame["t"]
+                    )
                     self._sample_count += 1
         except asyncio.CancelledError:
             pass

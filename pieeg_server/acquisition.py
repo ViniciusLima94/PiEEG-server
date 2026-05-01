@@ -208,7 +208,6 @@ class AcquisitionLoop:
 
             logging.getLogger("pieeg.acquisition").error("BLE connection failed: %s", e)
             return
-
         while not self._stop_event.is_set():
             sample = self._hw.read_sample()
             if sample is None:
