@@ -66,11 +66,16 @@ class LSLBridge:
 
         # Add channel labels to the stream description
         chns = info.desc().append_child("channels")
-        for i in range(num_ch):
+        for i in range(num_ch - 1):
             ch = chns.append_child("channel")
             ch.append_child_value("label", f"Ch{i}")
             ch.append_child_value("unit", "microvolts")
             ch.append_child_value("type", "EEG")
+
+        ch = chns.append_child("channel")
+        ch.append_child_value("label", "button")
+        ch.append_child_value("unit", "microvolts")
+        ch.append_child_value("type", "EEG")
 
         self._outlet = StreamOutlet(info)
         logger.info(
