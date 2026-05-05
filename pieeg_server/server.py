@@ -61,7 +61,7 @@ class PiEEGServer:
         self._num_channels = num_channels
         self._clients: set[websockets.ServerConnection] = set()
         self._filter: MultichannelFilter | None = None
-        self.classifier = None
+        self._classifier = None
         self._predict_history: list[float] = []
         self._predict_history_maxlen = 500
         # self.enable_filter()  # filter on by default
