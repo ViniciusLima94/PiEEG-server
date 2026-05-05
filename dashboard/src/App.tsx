@@ -11,7 +11,6 @@ import TopoMap from "./components/TopoMap";
 import Spectrogram from "./components/Spectrogram";
 import FilterPreview from "./components/FilterPreview";
 import StatsPanel from "./components/StatsPanel";
-import MentalStatePanel from "./components/MentalStatePanel";
 import UpdateBanner from "./components/UpdateBanner";
 import ChannelMismatchBanner from "./components/ChannelMismatchBanner";
 import ShortcutHelp from "./components/ShortcutHelp";
@@ -316,7 +315,6 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
   const [expandedCh, setExpandedCh] = useState<number | null>(null);
   const [showSpectrogram, setShowSpectrogram] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const [showMentalState, setShowMentalState] = useState(false);
   const mainAreaRef = useRef<HTMLDivElement>(null);
   const [gridPct, setGridPct] = useState(30);
   const [analysisPct, setAnalysisPct] = useState(35);
@@ -589,9 +587,6 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
         case "KeyG":
           setShowSpectrogram((v) => !v);
           break;
-        case "KeyM":
-          setShowMentalState((v) => !v);
-          break;
         case "KeyD":
           setShowDocs((v) => !v);
           break;
@@ -654,7 +649,7 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
 
   // Suspend grid RAF loops while expanded overlay covers them
   eeg.data.gridSuspended = expandedCh !== null && activeChannels.has(expandedCh);
-  const showAnalysis = showSpectrogram || showStats || showMentalState;
+  const showAnalysis = showSpectrogram || showStats  // || showMentalState;
 
   return (
     <AuthGate skipAuth={skipLocalAuth}>
@@ -787,12 +782,6 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
                 onClick={() => setShowStats((v) => !v)}
               >
                 Stats
-              </button>
-              <button
-                className={`btn${showMentalState ? " active" : ""}`}
-                onClick={() => setShowMentalState((v) => !v)}
-              >
-                Mental State
               </button>
             </div>
           </div>
@@ -1070,7 +1059,6 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
           >
             {showSpectrogram && <Spectrogram eegData={eeg.data} />}
             {showStats && <StatsPanel eegData={eeg.data} />}
-            {showMentalState && <MentalStatePanel eegData={eeg.data} />}
           </div>
         )}
         </div>

@@ -193,6 +193,12 @@ export function useEEG(timeWindowSec = 4, wsUrl?: string): UseEEGReturn {
           if (typeof handler === "function") handler(msg);
         }
 
+        // Forward prediction messages to the registered handler
+        if ("predict" in msg) {
+          const handler = (window as unknown as Record<string, unknown>).__predictHandler;
+          if (typeof handler === "function") handler(msg);
+        }
+
         // Handle spike config updates (from welcome or spike_config command)
         if ("spike_config" in msg) {
           const sc = (msg as Record<string, unknown>).spike_config as SpikeConfig;
@@ -227,6 +233,16 @@ export function useEEG(timeWindowSec = 4, wsUrl?: string): UseEEGReturn {
             samplesInBufRef.current = 0;
           }
           if (typeof welcome.mock === "boolean") setMock(welcome.mock);
+
+          // Deliver any historical prediction values included in the welcome message
+          if (Array.isArray((welcome as any).predict_history)) {
+            const hist = (welcome as any).predict_history as any[];
+            const handler = (window as unknown as Record<string, unknown>).__predictHandler;
+            if (typeof handler === "function") {
+              for (const p of hist) handler({ predict: p });
+            }
+          }
+
           return;
         }
         if (pausedRef.current) return;

@@ -5,11 +5,11 @@ signals using a pre-trained ML model.
 """
 
 import os
-import asyncio
 import joblib
 import json
 import logging
 import time
+import asyncio
 import numpy as np
 from collections import deque
 from pathlib import Path
@@ -111,7 +111,8 @@ class Classifier:
             if len(self._buffer) < self._T:
                 continue
 
-            prob = self._predict_from_buffer()
+            # Run prediction in a thread to avoid blocking the main event loop
+            prob = await asyncio.get_event_loop().run_in_executor(None, self._predict_from_buffer)
             self.probs.append({"prob": prob, "true": button})
 
             if self._on_predict is not None:
