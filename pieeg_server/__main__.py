@@ -754,7 +754,7 @@ def main():
         else:
             logger.error(
                 "--predict flag used but model files not found in %s",
-                classifier.MODEL_DIR,
+                MODEL_DIR,
             )
 
     # --- Graceful shutdown ---
