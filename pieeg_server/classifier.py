@@ -4,6 +4,7 @@ Subscribes to the acquisition loop and predicts state of button based on EEG
 signals using a pre-trained ML model.
 """
 
+import os
 import asyncio
 import joblib
 import json
