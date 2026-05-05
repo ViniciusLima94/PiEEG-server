@@ -61,6 +61,9 @@ class PiEEGServer:
         self._num_channels = num_channels
         self._clients: set[websockets.ServerConnection] = set()
         self._filter: MultichannelFilter | None = None
+        self.classifier = None
+        self._predict_history: list[float] = []
+        self._predict_history_maxlen = 500
         # self.enable_filter()  # filter on by default
         self._queue = acquisition.subscribe()
         self._recorder: Recorder | None = None
@@ -208,6 +211,8 @@ class PiEEGServer:
             "cloud_relay_status": self._get_cloud_relay_status(),
             "spike_config": self._get_spike_config(),
             "hampel_config": self._get_hampel_config(),
+            "predict_enabled": self._classifier is not None,
+            "predict_history": self._predict_history[-250:],
         }
         welcome.update(self._get_record_status())
         await ws.send(json.dumps(welcome))
@@ -1016,6 +1021,34 @@ class PiEEGServer:
                 "reg_config": {
                     "regs": {hex(k): hex(v) for k, v in state.items()},
                     "status": "ok",
+                }
+            }
+        )
+        stale = set()
+        for ws in list(self._clients):
+            try:
+                await ws.send(payload)
+            except websockets.ConnectionClosed:
+                stale.add(ws)
+        self._clients -= stale
+
+    def enable_predictor(self, classifier) -> None:
+        """Wire the Classifier so each prediction is broadcast to all clients."""
+        self._classifier = classifier
+        classifier._on_predict = self._on_prediction
+
+    async def _on_prediction(self, prob: float) -> None:
+        """Receive one prediction probability and fan it out."""
+        self._predict_history.append(round(prob, 4))
+        if len(self._predict_history) > self._predict_history_maxlen:
+            self._predict_history.pop(0)
+
+        payload = json.dumps(
+            {
+                "predict": {
+                    "prob": round(prob, 4),
+                    "label": int(prob >= 0.5),
+                    "t": time.time(),
                 }
             }
         )

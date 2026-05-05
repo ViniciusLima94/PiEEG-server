@@ -41,6 +41,7 @@ class Classifier:
         self._start_time = None  # set in run() at first iteration
         self._frames_read = 0
         self.probs = []
+        self._on_predict = None
         self._model_ready = False
 
         # ── load model files ──────────────────────────────────────────
@@ -110,6 +111,9 @@ class Classifier:
 
             prob = self._predict_from_buffer()
             self.probs.append({"prob": prob, "true": button})
+
+            if self._on_predict is not None:
+                await self._on_predict(prob)
 
             logger.debug(
                 "frame=%d  P(open)=%.3f  true=%d",

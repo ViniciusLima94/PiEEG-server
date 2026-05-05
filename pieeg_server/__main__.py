@@ -20,19 +20,23 @@ def _check_update():
     try:
         from urllib.request import urlopen
         import json
+
         url = "https://pypi.org/pypi/pieeg-server/json"
         with urlopen(url, timeout=3) as resp:
             latest = json.loads(resp.read())["info"]["version"]
         if latest != __version__:
             from rich.console import Console
             from rich.panel import Panel
-            Console().print(Panel(
-                f"[bold]{__version__}[/bold] → [bold green]{latest}[/bold green]\n"
-                f"Run: [cyan]pip install --upgrade pieeg-server[/cyan]",
-                title="[yellow]Update available[/yellow]",
-                border_style="yellow",
-                padding=(1, 2),
-            ))
+
+            Console().print(
+                Panel(
+                    f"[bold]{__version__}[/bold] → [bold green]{latest}[/bold green]\n"
+                    f"Run: [cyan]pip install --upgrade pieeg-server[/cyan]",
+                    title="[yellow]Update available[/yellow]",
+                    border_style="yellow",
+                    padding=(1, 2),
+                )
+            )
     except Exception:
         pass  # no network / not published yet — silently skip
 
@@ -87,14 +91,17 @@ def parse_args():
         default="pieeg16",
         help="Hardware profile: pieeg8/16 (SPI), ironbci8 (BLE) — default: pieeg16",
     )
+
     def _add_ble_args(parser):
         """Add BLE arguments to a parser (IronBCI / EAREEG compatible)."""
         parser.add_argument(
-            "--ble-name", default="EAREEG",
+            "--ble-name",
+            default="EAREEG",
             help="BLE advertised device name (default: 'EAREEG')",
         )
         parser.add_argument(
-            "--ble-address", default=None,
+            "--ble-address",
+            default=None,
             help="BLE MAC address to connect directly (skip scan)",
         )
 
@@ -106,7 +113,9 @@ def parse_args():
         help="Diagnose hardware, software, and configuration",
     )
     doc.add_argument(
-        "--quiet", "-q", action="store_true",
+        "--quiet",
+        "-q",
+        action="store_true",
         help="Only return exit code (0=ok, 1=warnings, 2=errors)",
     )
 
@@ -116,26 +125,34 @@ def parse_args():
         help="Record EEG data to CSV (without starting the WebSocket server)",
     )
     rec.add_argument(
-        "output", help="Output CSV file path",
+        "output",
+        help="Output CSV file path",
     )
     rec.add_argument(
-        "--device", **device_kwargs,
+        "--device",
+        **device_kwargs,
     )
     rec.add_argument(
-        "--duration", type=float, default=None,
+        "--duration",
+        type=float,
+        default=None,
         help="Recording duration in seconds (default: until Ctrl-C)",
     )
     rec.add_argument(
-        "--mock", action="store_true",
+        "--mock",
+        action="store_true",
         help="Use synthetic EEG data (no hardware needed)",
     )
     rec.add_argument(
-        "--gpio-chip", default="/dev/gpiochip4",
+        "--gpio-chip",
+        default="/dev/gpiochip4",
         help="GPIO chip device path (default: '/dev/gpiochip4' for Pi 5)",
     )
     _add_ble_args(rec)
     rec.add_argument(
-        "--verbose", "-v", action="store_true",
+        "--verbose",
+        "-v",
+        action="store_true",
         help="Enable debug logging",
     )
 
@@ -145,113 +162,159 @@ def parse_args():
         help="Live terminal monitor (requires 'rich')",
     )
     mon.add_argument(
-        "--mock", action="store_true",
+        "--mock",
+        action="store_true",
         help="Use synthetic EEG data (no hardware needed)",
     )
     mon.add_argument(
-        "--device", **device_kwargs,
+        "--device",
+        **device_kwargs,
     )
     mon.add_argument(
-        "--gpio-chip", default="/dev/gpiochip4",
+        "--gpio-chip",
+        default="/dev/gpiochip4",
         help="GPIO chip device path (default: '/dev/gpiochip4' for Pi 5)",
     )
     _add_ble_args(mon)
     mon.add_argument(
-        "--verbose", "-v", action="store_true",
+        "--verbose",
+        "-v",
+        action="store_true",
         help="Enable debug logging",
     )
 
     # --- server options (default command) ---
     p.add_argument(
-        "--device", **device_kwargs,
+        "--device",
+        **device_kwargs,
     )
     p.add_argument(
-        "--host", default="0.0.0.0",
+        "--host",
+        default="0.0.0.0",
         help="Bind address (default: 0.0.0.0 = all interfaces)",
     )
     p.add_argument(
-        "--port", type=int, default=1616,
+        "--port",
+        type=int,
+        default=1616,
         help="WebSocket port (default: 1616)",
     )
     p.add_argument(
-        "--dashboard-port", type=int, default=1617,
+        "--dashboard-port",
+        type=int,
+        default=1617,
         help="Dashboard HTTP port (default: 1617)",
     )
     p.add_argument(
-        "--no-dashboard", action="store_true",
+        "--no-dashboard",
+        action="store_true",
         help="Disable the web dashboard",
     )
     p.add_argument(
-        "--gpio-chip", default="/dev/gpiochip4",
+        "--gpio-chip",
+        default="/dev/gpiochip4",
         help="GPIO chip device path (default: '/dev/gpiochip4' for Pi 5)",
     )
     p.add_argument(
-        "--filter", action="store_true",
+        "--filter",
+        action="store_true",
         help="Enable 1–40 Hz bandpass filter on server side",
     )
     p.add_argument(
-        "--lowcut", type=float, default=1.0,
+        "--lowcut",
+        type=float,
+        default=1.0,
         help="Bandpass low cutoff in Hz (default: 1.0)",
     )
     p.add_argument(
-        "--highcut", type=float, default=40.0,
+        "--highcut",
+        type=float,
+        default=40.0,
         help="Bandpass high cutoff in Hz (default: 40.0)",
     )
     p.add_argument(
-        "--verbose", "-v", action="store_true",
+        "--verbose",
+        "-v",
+        action="store_true",
         help="Enable debug logging",
     )
     p.add_argument(
-        "--auth", action="store_true",
+        "--auth",
+        action="store_true",
         help="Enable authentication (requires 6-digit access code)",
     )
     p.add_argument(
-        "--mock", action="store_true",
+        "--mock",
+        action="store_true",
         help="Use synthetic EEG data (no hardware needed, for testing)",
     )
     p.add_argument(
-        "--no-webhooks", action="store_true",
+        "--no-webhooks",
+        action="store_true",
         help="Disable the webhook engine",
     )
     p.add_argument(
-        "--record", metavar="FILE",
+        "--record",
+        metavar="FILE",
         help="Record EEG data to CSV while streaming",
     )
     p.add_argument(
-        "--record-duration", type=float, default=None,
+        "--record-duration",
+        type=float,
+        default=None,
         help="Stop recording after N seconds (default: until stopped)",
     )
     p.add_argument(
-        "--monitor", action="store_true",
+        "--monitor",
+        action="store_true",
         help="Show live terminal monitor (requires 'rich')",
+    )
+    p.add_argument(
+        "--predict",
+        action="store_true",
+        help="Run the causal eye-state classifier and stream predictions to dashboard",
     )
     _add_ble_args(p)
     p.add_argument(
-        "--osc", action="store_true",
+        "--osc",
+        action="store_true",
         help="Enable VRChat OSC bridge on startup (sends EEG band powers via UDP)",
     )
     p.add_argument(
-        "--osc-host", default="127.0.0.1", metavar="HOST",
+        "--osc-host",
+        default="127.0.0.1",
+        metavar="HOST",
         help="VRChat OSC host (default: 127.0.0.1)",
     )
     p.add_argument(
-        "--osc-port", type=int, default=9000, metavar="PORT",
+        "--osc-port",
+        type=int,
+        default=9000,
+        metavar="PORT",
         help="VRChat OSC UDP port (default: 9000)",
     )
     p.add_argument(
-        "--osc-mode", default="both", choices=["chatbox", "parameters", "both"],
+        "--osc-mode",
+        default="both",
+        choices=["chatbox", "parameters", "both"],
         help="OSC output mode: chatbox text, avatar parameters, or both (default: both)",
     )
     p.add_argument(
-        "--osc-interval", type=float, default=0.25, metavar="SEC",
+        "--osc-interval",
+        type=float,
+        default=0.25,
+        metavar="SEC",
         help="Seconds between OSC sends (default: 0.25 = 4 Hz)",
     )
     p.add_argument(
-        "--lsl", action="store_true",
+        "--lsl",
+        action="store_true",
         help="Enable Lab Streaming Layer outlet on startup (pushes EEG samples via LSL)",
     )
     p.add_argument(
-        "--lsl-name", default="PiEEG", metavar="NAME",
+        "--lsl-name",
+        default="PiEEG",
+        metavar="NAME",
         help="LSL stream name (default: PiEEG)",
     )
     return p.parse_args()
@@ -284,11 +347,13 @@ def _setup_rich_logging(verbose=False, default_level=logging.INFO):
         level=logging.DEBUG if verbose else default_level,
         format="%(message)s",
         datefmt="[%X]",
-        handlers=[RichHandler(
-            console=console,
-            rich_tracebacks=True,
-            show_path=False,
-        )],
+        handlers=[
+            RichHandler(
+                console=console,
+                rich_tracebacks=True,
+                show_path=False,
+            )
+        ],
     )
     logging.getLogger("websockets").setLevel(logging.WARNING)
     return console
@@ -326,17 +391,23 @@ def _print_startup_panel(console, args, device_label, num_ch, local_ip, hostname
         table.add_row("", f"ws://{local_ip}:{args.port}  [dim](LAN)[/dim]")
     table.add_row("", f"ws://{hostname}.local:{args.port}  [dim](mDNS)[/dim]")
     if not args.no_dashboard:
-        table.add_row("Dashboard", f"[bold]http://localhost:{args.dashboard_port}[/bold]")
+        table.add_row(
+            "Dashboard", f"[bold]http://localhost:{args.dashboard_port}[/bold]"
+        )
         if local_ip not in ("127.0.0.1", "localhost"):
-            table.add_row("", f"http://{local_ip}:{args.dashboard_port}  [dim](LAN)[/dim]")
-        table.add_row("", f"http://{hostname}.local:{args.dashboard_port}  [dim](mDNS)[/dim]")
+            table.add_row(
+                "", f"http://{local_ip}:{args.dashboard_port}  [dim](LAN)[/dim]"
+            )
+        table.add_row(
+            "", f"http://{hostname}.local:{args.dashboard_port}  [dim](mDNS)[/dim]"
+        )
 
     features = []
-    if not getattr(args, 'no_webhooks', False):
+    if not getattr(args, "no_webhooks", False):
         features.append("webhooks")
-    if getattr(args, 'osc', False):
+    if getattr(args, "osc", False):
         features.append("osc")
-    if getattr(args, 'lsl', False):
+    if getattr(args, "lsl", False):
         features.append("lsl")
     if args.record:
         features.append(f"rec → {args.record}")
@@ -347,14 +418,18 @@ def _print_startup_panel(console, args, device_label, num_ch, local_ip, hostname
     if features:
         table.add_row("", "")
         table.add_row("Features", " · ".join(features))
+    if args.predict:
+        features.append("predict")
 
     console.print()
-    console.print(Panel(
-        table,
-        title=f"[bold cyan]🧠 {device_label}[/bold cyan] [dim]v{__version__}[/dim]",
-        border_style="cyan",
-        padding=(1, 2),
-    ))
+    console.print(
+        Panel(
+            table,
+            title=f"[bold cyan]🧠 {device_label}[/bold cyan] [dim]v{__version__}[/dim]",
+            border_style="cyan",
+            padding=(1, 2),
+        )
+    )
     console.print()
 
 
@@ -364,10 +439,12 @@ def _make_hardware(args, logger):
     num_ch = _num_channels_from_device(device)
     if args.mock:
         from .mock import MockHardware
+
         logger.info("Starting in MOCK mode (%d-channel synthetic EEG data)", num_ch)
         hw = MockHardware(num_channels=num_ch)
     elif _is_ble_device(device):
         from .ironbci import IronBCIHardware, scan_ble_devices
+
         ble_name = getattr(args, "ble_name", "EAREEG")
         ble_addr = getattr(args, "ble_address", None)
 
@@ -377,15 +454,21 @@ def _make_hardware(args, logger):
 
         logger.info(
             "Initializing IronBCI-%d (BLE name=%s, address=%s)...",
-            num_ch, ble_name, ble_addr or "auto-scan",
+            num_ch,
+            ble_name,
+            ble_addr or "auto-scan",
         )
         hw = IronBCIHardware(
-            ble_name=ble_name, ble_address=ble_addr, num_channels=num_ch,
+            ble_name=ble_name,
+            ble_address=ble_addr,
+            num_channels=num_ch,
         )
     else:
         from .hardware import PiEEGHardware
-        logger.info("Initializing PiEEG-%d hardware (GPIO chip: %s)...",
-                    num_ch, args.gpio_chip)
+
+        logger.info(
+            "Initializing PiEEG-%d hardware (GPIO chip: %s)...", num_ch, args.gpio_chip
+        )
         hw = PiEEGHardware(gpio_chip=args.gpio_chip, num_channels=num_ch)
     hw.open()
     if not args.mock and not _is_ble_device(device):
@@ -448,7 +531,9 @@ def _ble_interactive_scan(ble_name: str, logger) -> str | None:
             num = int(choice)
             if 1 <= num <= len(ordered):
                 selected = ordered[num - 1]
-                print(f"  → Connecting to '{selected['name']}' ({selected['address']})\n")
+                print(
+                    f"  → Connecting to '{selected['name']}' ({selected['address']})\n"
+                )
                 return selected["address"]
         except ValueError:
             pass
@@ -462,6 +547,7 @@ def main():
     # --- Doctor subcommand (no heavy deps needed) ---
     if args.command == "doctor":
         from .doctor import run_doctor
+
         sys.exit(run_doctor(quiet=args.quiet))
 
     # --- Record subcommand (standalone) ---
@@ -476,11 +562,19 @@ def main():
         hw = _make_hardware(args, logger)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        acq = AcquisitionLoop(hw, loop, mock=args.mock,
-                              ble=_is_ble_device(getattr(args, "device", "pieeg16")))
+        acq = AcquisitionLoop(
+            hw,
+            loop,
+            mock=args.mock,
+            ble=_is_ble_device(getattr(args, "device", "pieeg16")),
+        )
         acq.start()
-        recorder = Recorder(acq, output=args.output, duration=args.duration,
-                            num_channels=acq.num_channels)
+        recorder = Recorder(
+            acq,
+            output=args.output,
+            duration=args.duration,
+            num_channels=acq.num_channels,
+        )
 
         def _rec_shutdown(*_):
             logger.info("Stopping recording...")
@@ -508,8 +602,12 @@ def main():
         hw = _make_hardware(args, logger)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        acq = AcquisitionLoop(hw, loop, mock=args.mock,
-                              ble=_is_ble_device(getattr(args, "device", "pieeg16")))
+        acq = AcquisitionLoop(
+            hw,
+            loop,
+            mock=args.mock,
+            ble=_is_ble_device(getattr(args, "device", "pieeg16")),
+        )
         acq.start()
         monitor = TerminalMonitor(acq, num_channels=acq.num_channels)
 
@@ -525,6 +623,25 @@ def main():
         acq.stop()
         hw.close()
         return
+
+    # --- Classifier (optional, alongside server) ---
+    classifier = None
+    if getattr(args, "predict", False):
+        from .classifier import Classifier
+
+        classifier = Classifier(acq, num_channels=acq.num_channels)
+        if classifier._model_ready:
+            server.enable_predictor(classifier)
+            logger.info(
+                "Eye-state classifier enabled — T=%d, AUC=%.4f",
+                classifier._T,
+                classifier._p.get("best_cv_auc", 0),
+            )
+        else:
+            logger.error(
+                "--predict flag used but model files not found in %s",
+                classifier.MODEL_DIR,
+            )
 
     # --- Serve (default) subcommand ---
     _check_dependencies()
@@ -548,28 +665,34 @@ def main():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    acq = AcquisitionLoop(hw, loop, mock=args.mock,
-                           ble=_is_ble_device(getattr(args, "device", "pieeg16")))
+    acq = AcquisitionLoop(
+        hw, loop, mock=args.mock, ble=_is_ble_device(getattr(args, "device", "pieeg16"))
+    )
     acq.start()
     num_ch = acq.num_channels
     device_label = _device_label(getattr(args, "device", "pieeg16"))
-    logger.info("Acquisition started (250 Hz, %d channels%s)",
-                num_ch, " - MOCK" if args.mock else "")
+    logger.info(
+        "Acquisition started (250 Hz, %d channels%s)",
+        num_ch,
+        " - MOCK" if args.mock else "",
+    )
 
     # --- Server ---
-    server = PiEEGServer(acq, host=args.host, port=args.port, auth=auth,
-                         num_channels=num_ch)
+    server = PiEEGServer(
+        acq, host=args.host, port=args.port, auth=auth, num_channels=num_ch
+    )
     if args.filter:
         server.enable_filter(args.lowcut, args.highcut)
         logger.info("Server-side filter: %.1f-%.1f Hz", args.lowcut, args.highcut)
 
     # --- Webhooks ---
-    if not getattr(args, 'no_webhooks', False):
+    if not getattr(args, "no_webhooks", False):
         server.enable_webhooks()
 
     # --- VRChat OSC bridge (optional, auto-starts with --osc) ---
-    if getattr(args, 'osc', False):
+    if getattr(args, "osc", False):
         from .osc_vrchat import OSCConfig, VRChatOSCBridge  # noqa: F401
+
         osc_cfg = OSCConfig(
             host=args.osc_host,
             port=args.osc_port,
@@ -579,12 +702,16 @@ def main():
         server.enable_osc(osc_cfg)
         logger.info(
             "VRChat OSC bridge configured: %s:%d  mode=%s  interval=%.2fs",
-            args.osc_host, args.osc_port, args.osc_mode, args.osc_interval,
+            args.osc_host,
+            args.osc_port,
+            args.osc_mode,
+            args.osc_interval,
         )
 
     # --- LSL outlet (optional, auto-starts with --lsl) ---
-    if getattr(args, 'lsl', False):
+    if getattr(args, "lsl", False):
         from .lsl import LSLConfig
+
         try:
             import pylsl as _pylsl  # noqa: F401 – verify availability early
         except ImportError:
@@ -612,26 +739,31 @@ def main():
     recorder_task = None
     if args.record:
         from .recorder import Recorder
-        recorder = Recorder(acq, output=args.record, duration=args.record_duration,
-                            num_channels=num_ch)
-        logger.info("Recording to %s%s",
-                    args.record,
-                    f" for {args.record_duration}s" if args.record_duration else "")
+
+        recorder = Recorder(
+            acq, output=args.record, duration=args.record_duration, num_channels=num_ch
+        )
+        logger.info(
+            "Recording to %s%s",
+            args.record,
+            f" for {args.record_duration}s" if args.record_duration else "",
+        )
 
     # --- Terminal monitor (optional, alongside server) ---
     monitor = None
     monitor_task = None
     if args.monitor:
         from .monitor import TerminalMonitor
-        monitor = TerminalMonitor(acq, num_channels=num_ch,
-                                  device_label=device_label)
+
+        monitor = TerminalMonitor(acq, num_channels=num_ch, device_label=device_label)
 
     # --- Graceful shutdown ---
     shutdown_event = None
-    
+
     def shutdown(*_):
         nonlocal shutdown_event
         logger.info("Shutting down...")
+
         # Safely trigger cleanup through the event loop
         def _cleanup():
             # Cancel running tasks
@@ -645,7 +777,7 @@ def main():
                 hw.close()
             except Exception as e:
                 logger.debug(f"Cleanup error: {e}")
-        
+
         loop.call_soon_threadsafe(_cleanup)
 
     signal.signal(signal.SIGINT, shutdown)
@@ -675,6 +807,8 @@ def main():
             nonlocal monitor_task
             monitor_task = asyncio.create_task(monitor.run())
             tasks.append(monitor_task)
+        if classifier:
+            tasks.append(asyncio.create_task(classifier.run()))
         await asyncio.gather(*tasks)
 
     try:
