@@ -741,7 +741,7 @@ def main():
     # --- Classifier (optional, alongside server) ---
     classifier = None
     if getattr(args, "predict", False):
-        from .classifier import Classifier
+        from .classifier import Classifier, MODEL_DIR
 
         classifier = Classifier(acq, num_channels=num_ch)
         if classifier._model_ready:
