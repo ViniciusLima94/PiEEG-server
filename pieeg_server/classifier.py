@@ -15,7 +15,8 @@ from pathlib import Path
 
 logger = logging.getLogger("pieeg.classifier")
 
-MODEL_DIR = Path(__file__).parent.parent / "model"
+# Prefer an explicit env var, then fall back to cwd/model
+MODEL_DIR = Path(os.environ.get("PIEEG_MODEL_DIR") or Path.cwd() / "model")
 
 
 class Classifier:
