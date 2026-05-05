@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, memo, useMemo } from "react";
 import { FftEngine } from "../lib/fftEngine";
 import type { EEGData, CanvasSize } from "../types";
 import { SAMPLE_RATE } from "../types";
+import { drawProbabilityPlot } from "./_probabilityPlot";
 
 const FFT_SIZE = 256;
 const MAX_DISPLAY_HZ = 60;
@@ -196,12 +197,19 @@ const Spectrogram = memo(function Spectrogram({ eegData }: SpectrogramProps) {
         }
       }
 
-      // Draw spectrogram
-      drawSpectrogram(ctx, w, h, heatImgData, heatW, heatH, (img, iw, ih) => {
-        heatImgData = img;
-        heatW = iw;
-        heatH = ih;
-      });
+      // Draw spectrogram or probability time series (if present)
+      const hasPredict = !!(
+        eegData.predictBuffer && eegData.predictCount && eegData.predictBufferSize
+      );
+      if (hasPredict && eegData.predictCount!.current > 1) {
+        drawProbabilityPlot(ctx, w, h, eegData);
+      } else {
+        drawSpectrogram(ctx, w, h, heatImgData, heatW, heatH, (img, iw, ih) => {
+          heatImgData = img;
+          heatW = iw;
+          heatH = ih;
+        });
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
 

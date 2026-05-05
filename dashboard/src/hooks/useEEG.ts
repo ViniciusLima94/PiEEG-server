@@ -44,6 +44,12 @@ export function useEEG(timeWindowSec = 4, wsUrl?: string): UseEEGReturn {
   const lastUIUpdate = useRef(0);
   const bufferSizeRef = useRef(0);
 
+  // Prediction series buffer (probability 0..1)
+  const PRED_BUFFER_SIZE = 500;
+  const predictBufRef = useRef(new Float32Array(PRED_BUFFER_SIZE));
+  const predictWriteRef = useRef(0);
+  const predictCountRef = useRef(0);
+
   const bufferSize = SAMPLE_RATE * timeWindowSec;
   bufferSizeRef.current = bufferSize;
 
@@ -193,10 +199,26 @@ export function useEEG(timeWindowSec = 4, wsUrl?: string): UseEEGReturn {
           if (typeof handler === "function") handler(msg);
         }
 
-        // Forward prediction messages to the registered handler
+        // Forward prediction messages to the registered handler and store locally
         if ("predict" in msg) {
           const handler = (window as unknown as Record<string, unknown>).__predictHandler;
           if (typeof handler === "function") handler(msg);
+
+          // Extract probability (welcome may send raw float, live sends {prob,label,t})
+          let prob: number | null = null;
+          try {
+            const p = (msg as any).predict;
+            if (typeof p === "number") prob = p;
+            else if (p && typeof p.prob === "number") prob = p.prob;
+          } catch {
+            prob = null;
+          }
+          if (prob !== null) {
+            const buf = predictBufRef.current;
+            buf[predictWriteRef.current] = prob;
+            predictWriteRef.current = (predictWriteRef.current + 1) % PRED_BUFFER_SIZE;
+            if (predictCountRef.current < PRED_BUFFER_SIZE) predictCountRef.current++;
+          }
         }
 
         // Handle spike config updates (from welcome or spike_config command)
@@ -240,6 +262,16 @@ export function useEEG(timeWindowSec = 4, wsUrl?: string): UseEEGReturn {
             const handler = (window as unknown as Record<string, unknown>).__predictHandler;
             if (typeof handler === "function") {
               for (const p of hist) handler({ predict: p });
+            }
+
+            // Also copy into local circular buffer
+            const buf = predictBufRef.current;
+            for (const p of hist) {
+              const prob = typeof p === 'number' ? p : (p && typeof p.prob === 'number' ? p.prob : null);
+              if (prob === null) continue;
+              buf[predictWriteRef.current] = prob;
+              predictWriteRef.current = (predictWriteRef.current + 1) % PRED_BUFFER_SIZE;
+              if (predictCountRef.current < PRED_BUFFER_SIZE) predictCountRef.current++;
             }
           }
 
@@ -324,6 +356,10 @@ export function useEEG(timeWindowSec = 4, wsUrl?: string): UseEEGReturn {
       bufferSize,
       numChannels: numChRef.current,
       gridSuspended: false,
+      predictBuffer: predictBufRef,
+      predictWriteIndex: predictWriteRef,
+      predictCount: predictCountRef,
+      predictBufferSize: PRED_BUFFER_SIZE,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

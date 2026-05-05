@@ -302,7 +302,7 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
   const [view, setView] = useState<ViewState>("live");
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
-  const [showFFT, setShowFFT] = useState(true);
+  const [showFFT, setShowFFT] = useState(false);
   const [filterEnabled, setFilterEnabled] = useState(true);
   const [lowcut, setLowcut] = useState<number | string>(1);
   const [highcut, setHighcut] = useState<number | string>(40);

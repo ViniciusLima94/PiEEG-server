@@ -27,6 +27,11 @@ export interface EEGData {
   bufferSize: number;
   numChannels: number;
   gridSuspended: boolean;
+  // Optional prediction time-series (probabilities 0..1)
+  predictBuffer?: MutableRefObject<Float32Array>;
+  predictWriteIndex?: MutableRefObject<number>;
+  predictCount?: MutableRefObject<number>;
+  predictBufferSize?: number;
 }
 
 // ── FFT / spectral types ─────────────────────────────────────────────────
