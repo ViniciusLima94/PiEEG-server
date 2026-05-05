@@ -624,25 +624,6 @@ def main():
         hw.close()
         return
 
-    # --- Classifier (optional, alongside server) ---
-    classifier = None
-    if getattr(args, "predict", False):
-        from .classifier import Classifier
-
-        classifier = Classifier(acq, num_channels=acq.num_channels)
-        if classifier._model_ready:
-            server.enable_predictor(classifier)
-            logger.info(
-                "Eye-state classifier enabled — T=%d, AUC=%.4f",
-                classifier._T,
-                classifier._p.get("best_cv_auc", 0),
-            )
-        else:
-            logger.error(
-                "--predict flag used but model files not found in %s",
-                classifier.MODEL_DIR,
-            )
-
     # --- Serve (default) subcommand ---
     _check_dependencies()
     from .acquisition import AcquisitionLoop
@@ -756,6 +737,25 @@ def main():
         from .monitor import TerminalMonitor
 
         monitor = TerminalMonitor(acq, num_channels=num_ch, device_label=device_label)
+
+    # --- Classifier (optional, alongside server) ---
+    classifier = None
+    if getattr(args, "predict", False):
+        from .classifier import Classifier
+
+        classifier = Classifier(acq, num_channels=num_ch)
+        if classifier._model_ready:
+            server.enable_predictor(classifier)
+            logger.info(
+                "Eye-state classifier enabled — T=%d, AUC=%.4f",
+                classifier._T,
+                classifier._p.get("best_cv_auc", 0),
+            )
+        else:
+            logger.error(
+                "--predict flag used but model files not found in %s",
+                classifier.MODEL_DIR,
+            )
 
     # --- Graceful shutdown ---
     shutdown_event = None
