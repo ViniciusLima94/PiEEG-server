@@ -51,9 +51,11 @@ const TURBO_LUT = buildTurboLUT();
 
 interface SpectrogramProps {
   eegData: EEGData;
+  // mode: 'auto' (default) | 'prob' | 'spec'
+  displayMode?: "auto" | "prob" | "spec";
 }
 
-const Spectrogram = memo(function Spectrogram({ eegData }: SpectrogramProps) {
+const Spectrogram = memo(function Spectrogram({ eegData, displayMode = "auto" }: SpectrogramProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
   const frameRef = useRef(0);
@@ -201,7 +203,8 @@ const Spectrogram = memo(function Spectrogram({ eegData }: SpectrogramProps) {
       const hasPredict = !!(
         eegData.predictBuffer && eegData.predictCount && eegData.predictBufferSize
       );
-      if (hasPredict && eegData.predictCount!.current > 1) {
+      const wantProb = displayMode === "prob" || (displayMode === "auto" && hasPredict && eegData.predictCount!.current > 1);
+      if (wantProb) {
         drawProbabilityPlot(ctx, w, h, eegData);
       } else {
         drawSpectrogram(ctx, w, h, heatImgData, heatW, heatH, (img, iw, ih) => {

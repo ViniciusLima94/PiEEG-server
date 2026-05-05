@@ -315,6 +315,7 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
   const [expandedCh, setExpandedCh] = useState<number | null>(null);
   const [showSpectrogram, setShowSpectrogram] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showProbability, setShowProbability] = useState(false);
   const mainAreaRef = useRef<HTMLDivElement>(null);
   const [gridPct, setGridPct] = useState(30);
   const [analysisPct, setAnalysisPct] = useState(35);
@@ -912,6 +913,16 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
               >
                 Registers
               </button>
+              <button
+                className={`btn${showProbability ? " active" : ""}`}
+                onClick={() => {
+                  setShowSpectrogram(true);
+                  setShowProbability((v) => !v);
+                }}
+                title="Toggle probability time-series in analysis panel"
+              >
+                Probability
+              </button>
             </div>
           </div>
 
@@ -1057,7 +1068,7 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
             className="analysis-area"
             style={showFFT ? { flex: `0 0 ${analysisPct}%` } : undefined}
           >
-            {showSpectrogram && <Spectrogram eegData={eeg.data} />}
+            {showSpectrogram && <Spectrogram eegData={eeg.data} displayMode={showProbability ? "prob" : "auto"} />}
             {showStats && <StatsPanel eegData={eeg.data} />}
           </div>
         )}
