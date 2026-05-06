@@ -919,9 +919,9 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
                   setShowSpectrogram(true);
                   setShowProbability((v) => !v);
                 }}
-                title="Toggle probability time-series in analysis panel"
+                title="Toggle prediction time-series in analysis panel"
               >
-                Probability
+                Prediction
               </button>
             </div>
           </div>
