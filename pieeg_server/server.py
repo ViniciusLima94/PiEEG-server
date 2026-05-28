@@ -1035,6 +1035,7 @@ class PiEEGServer:
     def enable_predictor(self, classifier) -> None:
         """Wire the Classifier so each prediction is broadcast to all clients."""
         self._classifier = classifier
+        self._predict_thresh = classifier.thresh
         classifier._on_predict = self._on_prediction
 
     async def _on_prediction(self, prob: float) -> None:
@@ -1047,7 +1048,7 @@ class PiEEGServer:
             {
                 "predict": {
                     "prob": round(prob, 4),
-                    "label": int(prob >= 0.5),
+                    "label": int(prob >= self._predict_thresh),
                     "t": time.time(),
                 }
             }

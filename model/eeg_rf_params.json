@@ -1,12 +1,13 @@
 {
-  "T": 125,
-  "n_estimators": 50,
+  "T": 126,
+  "n_estimators": 52,
   "max_depth": 30,
-  "min_samples_split": 13,
+  "min_samples_split": 14,
   "min_samples_leaf": 3,
   "max_features": "sqrt",
   "class_weight": null,
-  "best_cv_auc": 0.9996910676079789,
+  "best_cv_auc": 0.7649236886310944,
+  "best_thresh": 0.1733614206314087,
   "n_channels": 16,
   "channel_names": [
     "ch1",
@@ -26,5 +27,6 @@
     "ch15",
     "ch16"
   ],
-  "fs": 128
+  "fs": 250,
+  "per_window_norm": true
 }

@@ -49,7 +49,7 @@ class Classifier:
         # ── load model files ──────────────────────────────────────────
         missing = [
             f
-            for f in ["eeg_rf_model.joblib", "eeg_scaler.joblib", "eeg_rf_params.json"]
+            for f in ["eeg_rf_calibrated.joblib", "eeg_rf_params.json"]
             if not (MODEL_DIR / f).exists()
         ]
         if missing:
@@ -58,23 +58,24 @@ class Classifier:
             return
 
         try:
-            self._clf = joblib.load(MODEL_DIR / "eeg_rf_model.joblib")
-            self._scaler = joblib.load(MODEL_DIR / "eeg_scaler.joblib")
+            self._clf = joblib.load(MODEL_DIR / "eeg_rf_calibrated.joblib")
 
             with open(MODEL_DIR / "eeg_rf_params.json") as f:
                 self._p = json.load(f)
 
             self._T = self._p["T"]
+            self._thresh = self._p.get("best_thresh", 0.5)
 
             # rolling buffer — holds exactly the last T raw channel frames
             self._buffer = deque(maxlen=self._T)
 
             self._model_ready = True
             logger.info(
-                "Model loaded — T=%d samples, channels=%d, CV_AUC=%.4f",
+                "Model loaded — T=%d samples, channels=%d, CV_AUC=%.4f, thresh=%.3f",
                 self._T,
                 self._p["n_channels"],
                 self._p["best_cv_auc"],
+                self._thresh,
             )
 
         except json.JSONDecodeError as e:
@@ -125,19 +126,28 @@ class Classifier:
                 button,
             )
 
+    @property
+    def thresh(self) -> float:
+        """Optimal decision threshold (Youden's J from training CV)."""
+        return self._thresh
+
     # ── private ───────────────────────────────────────────────────────────
     def _predict_from_buffer(self) -> float:
         """
         Build one causal window from the rolling buffer and return
         P(eyes open) for the next sample.
 
+        Normalisation: per-window z-score per channel — same as training.
+        No global scaler needed; this is stateless and session-agnostic.
+
         Returns
         -------
-        float : probability in [0, 1]
+        float : calibrated probability in [0, 1]
         """
         # buffer holds T frames of shape (C,) → stack to (T, C)
         X_raw = np.stack(self._buffer, axis=0).astype(np.float32)
-        X_scaled = self._scaler.transform(X_raw)  # (T, C)
-        X_win = X_scaled.flatten()[np.newaxis, :]  # (1, C*T)
+        mu = X_raw.mean(axis=0, keepdims=True)
+        sd = X_raw.std(axis=0, keepdims=True) + 1e-8
+        X_win = ((X_raw - mu) / sd).flatten()[np.newaxis, :]  # (1, C*T)
         prob = float(self._clf.predict_proba(X_win)[0, 1])
         return prob
