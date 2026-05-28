@@ -776,7 +776,7 @@ export default function App({ wsUrl, onDisconnect }: { wsUrl?: string; onDisconn
                 className={`btn${showSpectrogram ? " active" : ""}`}
                 onClick={() => setShowSpectrogram((v) => !v)}
               >
-                Spectrogram
+                Prediction
               </button>
               <button
                 className={`btn${showStats ? " active" : ""}`}

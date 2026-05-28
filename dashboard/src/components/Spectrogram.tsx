@@ -384,7 +384,7 @@ const Spectrogram = memo(function Spectrogram({ eegData, displayMode = "auto" }:
     <div className="spectrogram-panel">
       <div className="spectrogram-toolbar">
         <span className="spectrogram-title">
-          Spectrogram{" "}
+          Prediction{" "}
           <small style={{ color: "var(--text-dim)", fontWeight: 400 }}>{chLabel}</small>
         </span>
         <div className="spectrogram-channels">
