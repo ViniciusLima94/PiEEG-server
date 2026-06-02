@@ -58,6 +58,7 @@ class Recorder:
         self._output.parent.mkdir(parents=True, exist_ok=True)
 
         with open(self._output, "w", newline="") as fh:
+            # Use delimiter as ;
             writer = csv.writer(fh, delimiter=";")
             writer.writerow(_make_csv_header(self._num_channels))
 
