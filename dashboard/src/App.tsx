@@ -147,6 +147,10 @@ function SpikeRejectionGroup({
   sendCommand: (msg: Record<string, unknown>) => void;
   mock: boolean;
 }) {
+  // Hardcode spike enabled to false
+  spikeEnabled = false;
+  hampelConfig.enabled = false;
+
   const [open, setOpen] = useState(false);
   const anyActive = spikeEnabled || hampelConfig.enabled;
   const totalReplaced = hampelConfig.replaced_count;
